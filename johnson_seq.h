@@ -2,7 +2,8 @@
 #include <stdlib.h>
 #include <getopt.h>
 
-#define MAXLINELEN 1024
+#define MaxLineLength 1024
+#define IntMax __INT32_MAX__
 
 typedef struct {
     int nnode;
@@ -11,4 +12,8 @@ typedef struct {
     int *node;
     int *edge;
     int *weight;
-} graph_t;
+} Graph;
+
+Graph *LoadGraph(FILE *graph_file);
+
+void BellmanFord(Graph *g, int src_nide);

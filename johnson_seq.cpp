@@ -60,17 +60,7 @@ Graph *LoadGraph(FILE *graph_file) {
 
 void Johnson(Graph *graph) {
     BellmanFord(graph, 0);
-
     AllPairsDijkstra(graph);
-
-    for (int i = 0; i < graph->nnode; i++) {
-        for (int j = 0; j < graph->nnode; j++)
-            if (graph->distance[i][j] == IntMax)
-                printf("inf\t");
-            else
-                printf("%d\t", graph->distance[i][j]);
-        printf("\n");
-    }
 }
 
 int main(int argc, char *argv[]) {
@@ -99,4 +89,17 @@ int main(int argc, char *argv[]) {
     graph = LoadGraph(graph_file);
 
     Johnson(graph);
+
+    // Write result to file
+    std::ofstream f;
+    f.open("result.txt");
+    for (int i = 0; i < graph->nnode; i++) {
+        for (int j = 0; j < graph->nnode; j++)
+            if (graph->distance[i][j] == IntMax)
+                f << "inf\t\t";
+            else
+                f << graph->distance[i][j] << "\t\t";
+        f << "\n";
+    }
+    f.close();
 }

@@ -2,23 +2,13 @@
 
 # Perform regression test, comparing outputs of different johnson implementation
 
+import argparse
 import subprocess
 import sys
 import math
 import os
 import os.path
 import getopt
-
-def usage(fname):
-    print "Usage: %s [-h] [-c] [-t THD] [-p PCS]" % fname
-    print "    -h       Print this message"
-    print "    -c       Clear expected result cache"
-    print "    -t THD   Specify number of OMP threads"
-    print "       If > 1, will run johnson-omp.  Else will run johnson-seq"
-    print "    -g       Run johnson-cuda"
-
-    sys.exit(0)
-
 
 # General information
 
@@ -44,7 +34,7 @@ mismatchLimit = 5
 #  graph file name
 regressionList = [
     "small.txt",
-    # "graph1.txt",
+    "graph1.txt",
     # "graph2.txt",
     # "graph3.txt",
     # "graph4.txt",
@@ -81,8 +71,9 @@ def regressionCommand(params, standard = True, threadCount = 1, gpu = False):
     cmd = prelist + [prog, "-g", graphFileName]
 
     if standard:
-        cmd += ["-m", "d"]
-    #elif gpu:
+        pass # any additional arg goes here
+    elif gpu:
+        pass # any additional arg goes here
     elif threadCount > 1:
         cmd += ["-t", str(threadCount)]
     return cmd
@@ -144,7 +135,8 @@ def checkFiles(refPath, testPath):
         if rline != tline:
             badLines += 1
             if badLines <= mismatchLimit:
-                sys.stderr.write("Mismatch at line %d.  File %s:'%s'.  File %s:'%s'\n" % (lineNumber, refPath, rline, testPath, tline))
+                sys.stderr.write("Mismatch at line %d.\n" % (lineNumber))
+                # sys.stderr.write("Mismatch at line %d.  File %s:'%s'.  File %s:'%s'\n" % (lineNumber, refPath, rline, testPath, tline))
     rf.close()
     tf.close()
     if badLines > 0:
@@ -195,22 +187,30 @@ def run(flushCache, threadCount, gpu, doAll):
     message = "SUCCESS" if goodCount == totalCount else "FAILED"
     sys.stderr.write("Regression set size %d.  %d/%d tests successful. %s\n" % (totalCount, goodCount, allCount, message))
 
+def str_to_bool(value):
+    if isinstance(value, bool):
+        return value
+    if value.lower() in {'false', 'f', '0', 'no', 'n'}:
+        return False
+    elif value.lower() in {'true', 't', '1', 'yes', 'y'}:
+        return True
+    raise ValueError(f'{value} is not a valid boolean value')
 
 if __name__ == "__main__":
     doAll = False
-    threadCount = 8
-    flushCache = False
-    gpu = False
 
-    optlist, args = getopt.getopt(sys.argv[1:], "hctg:")
+    parser = argparse.ArgumentParser()
+    parser.add_argument("-c", "--flushCache", action="store_true",
+                    help="Clear expected result cache")
+    parser.add_argument("-t", "--threadCount", type=int,
+                    help="Specify number of OMP threads.\n If > 1, will run johnson-omp.  Else will run johnson-seq")
+    parser.add_argument("-g", "--gpu", type=str,
+                    help="Run johnson-cuda")
 
-    for (opt, val) in optlist:
-        if opt == '-h':
-            usage(sys.argv[0])
-        if opt == '-c':
-            flushCache = True
-        elif opt == '-t':
-            threadCount = int(val)
-        elif opt == '-g':
-            gpu = True
+    args = parser.parse_args()
+
+    threadCount = args.threadCount or 8
+    flushCache = args.flushCache or False
+    gpu = args.gpu or False
+
     run(flushCache, threadCount, gpu, doAll)

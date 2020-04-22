@@ -19,13 +19,9 @@
 int main(int argc, char *argv[]){
   int c;
   FILE *gfile = NULL;
-  std::string outfile;
   // parse command line arguments
-  while ((c = getopt(argc, argv, "o:g:")) != -1) {
+  while ((c = getopt(argc, argv, "g:")) != -1) {
     switch(c) {
-      case 'o':
-        outfile = optarg;
-        break;
       case 'g':
         gfile = fopen(optarg, "r");
         if (gfile == NULL)
@@ -38,12 +34,6 @@ int main(int argc, char *argv[]){
 
   if (gfile == NULL) {
     printf("Need graph file\n");
-    return 0;
-  }
-
-  if (outfile.empty()) {
-    printf("No output file name provided, default will be used: johnson-boost.txt\n");
-    outfile = "johnson-boost.txt";
     return 0;
   }
 
@@ -113,17 +103,15 @@ int main(int argc, char *argv[]){
 
   johnson_all_pairs_shortest_paths(g, D, distance_map(&d[0]));
 
-  std::ofstream f;
-  f.open(outfile);
-  for (int i = 0; i < V; i++) {
-      for (int j = 0; j < V; j++)
-          if (D[i][j] == (std::numeric_limits<int>::max)())
-              f << "inf\t\t";
-          else
-              f << D[i][j] << "\t\t";
-      f << "\n";
+  for (int i = 0; i < V; ++i) {
+    for (int j = 0; j < V; ++j) {
+      if (D[i][j] == (std::numeric_limits<int>::max)())
+      std::cout << std::setw(5) << "inf";
+      else
+      std::cout << std::setw(5) << D[i][j];
+    }
+    std::cout << std::endl;
   }
-  f.close();
 
   return 0;
 }

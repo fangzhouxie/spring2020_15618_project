@@ -1,12 +1,13 @@
 #include "johnson_seq.hpp"
 
-void BellmanFord(Graph *graph, int src_nid) {
+void BellmanFord(Graph *graph) {
+    printf("BellmanFord started\n");
+
     int distance[graph->nnode];
 
     // Initialize distances from new source node to all nodes
     for (int nid = 0; nid < graph->nnode; nid++)
-        distance[nid] = IntMax;
-    distance[src_nid] = 0;
+        distance[nid] = 0;
 
     // Iterate through the graph V - 1 times
     for (int iter = 0; iter < graph->nnode; iter++)
@@ -14,7 +15,7 @@ void BellmanFord(Graph *graph, int src_nid) {
             for (int eid = graph->node[u]; eid < graph->node[u+1]; eid++) {
                 int v = graph->edge[eid];
                 int weight = graph->weight[eid]; 
-                if (distance[v] > distance[u] + weight && distance[u] != IntMax)
+                if (distance[v] > distance[u] + weight)
                     distance[v] = distance[u] + weight;
             }
 

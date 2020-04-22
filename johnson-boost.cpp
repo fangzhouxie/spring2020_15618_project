@@ -12,15 +12,20 @@
 #include <boost/graph/adjacency_list.hpp>
 #include <boost/graph/graphviz.hpp>
 #include <boost/graph/johnson_all_pairs_shortest.hpp>
+#include <string>
 
 #define MAXLINELEN 1024
 
 int main(int argc, char *argv[]){
   int c;
   FILE *gfile = NULL;
+  std::string outfile;
   // parse command line arguments
-  while ((c = getopt(argc, argv, "g:")) != -1) {
+  while ((c = getopt(argc, argv, "o:g:")) != -1) {
     switch(c) {
+      case 'o':
+        outfile = optarg;
+        break;
       case 'g':
         gfile = fopen(optarg, "r");
         if (gfile == NULL)
@@ -33,6 +38,12 @@ int main(int argc, char *argv[]){
 
   if (gfile == NULL) {
     printf("Need graph file\n");
+    return 0;
+  }
+
+  if (outfile.empty()) {
+    printf("No output file name provided, default will be used: johnson-boost.txt\n");
+    outfile = "johnson-boost.txt";
     return 0;
   }
 
@@ -54,7 +65,7 @@ int main(int argc, char *argv[]){
 
   fgets(linebuf, MAXLINELEN, gfile);
   if (sscanf(linebuf, "%d", &nedge) < 1) {
-    printf("ERROR. Malformed graph file header (line 1)\n");
+    printf("ERROR. Malformed graph file header (line 2)\n");
     return -1;
   }
 
@@ -64,7 +75,7 @@ int main(int argc, char *argv[]){
 
   while (fgets(linebuf, MAXLINELEN, gfile) != NULL) {
     if (sscanf(linebuf, "%d %d %d", &from_node, &to_node, &weight) < 3) {
-      printf("ERROR. Malformed graph file header (line 1)\n");
+      printf("ERROR. Malformed graph file weights\n");
       return -1;
     }
 
@@ -92,7 +103,6 @@ int main(int argc, char *argv[]){
   w[*e] = *wp++;
 
   std::vector < int >d(V, (std::numeric_limits < int >::max)());
-  //int D[V][V];
   //variably modified type 'int [V][V]' cannot be used as a template argument
   //instead use a double pointer
   int *DD = new int[V*V];
@@ -103,33 +113,17 @@ int main(int argc, char *argv[]){
 
   johnson_all_pairs_shortest_paths(g, D, distance_map(&d[0]));
 
-  std::cout << "       ";
-  for (int k = 0; k < V; ++k)
-  std::cout << std::setw(5) << k;
-  std::cout << std::endl;
-  for (int i = 0; i < V; ++i) {
-    std::cout << std::setw(3) << i << " -> ";
-    for (int j = 0; j < V; ++j) {
-      if (D[i][j] == (std::numeric_limits<int>::max)())
-      std::cout << std::setw(5) << "inf";
-      else
-      std::cout << std::setw(5) << D[i][j];
-    }
-    std::cout << std::endl;
+  std::ofstream f;
+  f.open(outfile);
+  for (int i = 0; i < V; i++) {
+      for (int j = 0; j < V; j++)
+          if (D[i][j] == (std::numeric_limits<int>::max)())
+              f << "inf\t\t";
+          else
+              f << D[i][j] << "\t\t";
+      f << "\n";
   }
+  f.close();
 
-  std::ofstream fout("figs/johnson-eg.dot");
-  fout << "digraph A {\n"
-  << "  rankdir=LR\n"
-  << "size=\"5,3\"\n"
-  << "ratio=\"fill\"\n"
-  << "edge[style=\"bold\"]\n" << "node[shape=\"circle\"]\n";
-
-  graph_traits < Graph >::edge_iterator ei, ei_end;
-  for (boost::tie(ei, ei_end) = edges(g); ei != ei_end; ++ei)
-  fout << source(*ei, g) << " -> " << target(*ei, g)
-  << "[label=" << get(edge_weight, g)[*ei] << "]\n";
-
-  fout << "}\n";
   return 0;
 }

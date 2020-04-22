@@ -1,4 +1,4 @@
-#include "johnson_seq.h"
+#include "johnson_seq.hpp"
 
 void BellmanFord(Graph *graph, int src_nid) {
     int distance[graph->nnode];
@@ -22,8 +22,8 @@ void BellmanFord(Graph *graph, int src_nid) {
     for (int u = 0; u < graph->nnode; u++)
         for (int eid = graph->node[u]; eid < graph->node[u+1]; eid++) {
             int v = graph->edge[eid];
-            graph->weight[eid] += distance[u] - distance[v];
-            if (graph->weight[eid] < 0) {
+            graph->new_weight[eid] = graph->weight[eid] + distance[u] - distance[v];
+            if (graph->new_weight[eid] < 0) {
                 printf("Graph contains negative weight cycle\n");
                 exit(0);
             }

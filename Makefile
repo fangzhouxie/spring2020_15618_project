@@ -1,7 +1,7 @@
 CC=g++
 CXXFLAGS=-g -O3
 
-CFILES = johnson_seq.cpp bellman_ford.cpp johnson_seq.h
+CFILES = johnson_seq.cpp bellman_ford.cpp dijkstra.cpp johnson_seq.hpp
 
 .PHONY: clean
 

@@ -12,8 +12,16 @@ typedef struct {
     int *node;
     int *edge;
     int *weight;
+    int *new_weight;
+
+    int **distance;
+    int **predecessor;
 } Graph;
 
 Graph *LoadGraph(FILE *graph_file);
 
 void BellmanFord(Graph *g, int src_nide);
+
+void AllPairsDijkstra(Graph *graph);
+
+void Johnson(Graph *graph);

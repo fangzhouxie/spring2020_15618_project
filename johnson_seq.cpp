@@ -1,4 +1,4 @@
-#include "johnson_seq.h"
+#include "johnson_seq.hpp"
 
 Graph *LoadGraph(FILE *graph_file) {
     Graph *graph = (Graph *)malloc(sizeof(Graph));
@@ -7,6 +7,7 @@ Graph *LoadGraph(FILE *graph_file) {
     int prev_src_id = 0;
     int lineno = 0;
 
+    //  Load number of nodes and edges
     fgets(linebuf, MaxLineLength, graph_file);
     if (sscanf(linebuf, "%d", &graph->nnode) < 1) {
         printf("ERROR. Malformed graph file header (line 1)\n");
@@ -19,11 +20,20 @@ Graph *LoadGraph(FILE *graph_file) {
         return NULL;
     }
 
+    //  Initialize graph
     graph->node = (int *)calloc(graph->nnode+1, sizeof(int));
     graph->node[graph->nnode] = graph->nedge;
     graph->edge = (int *)malloc(graph->nedge * sizeof(int));
     graph->weight = (int *)malloc(graph->nedge * sizeof(int));
+    graph->new_weight = (int *)malloc(graph->nedge * sizeof(int));
+    graph->distance = (int **)malloc(graph->nnode * sizeof(int *));
+    graph->predecessor = (int **)malloc(graph->nnode * sizeof(int *));
+    for (int nid = 0; nid < graph->nnode; nid++) {
+        graph->distance[nid] = (int *)malloc(graph->nnode * sizeof(int));
+        graph->predecessor[nid] = (int *)malloc(graph->nnode * sizeof(int));
+    }
 
+    //  Load edges
     while (fgets(linebuf, MaxLineLength, graph_file) != NULL) {
         if (sscanf(linebuf, "%d %d %d", &src_id, &dst_id, &weight) < 3) {
             printf("ERROR. Malformed graph file header (line 1)\n");
@@ -42,10 +52,25 @@ Graph *LoadGraph(FILE *graph_file) {
         lineno++;
     }
 
-    // Padd all later nodes
+    // Pad all later nodes with 0 out degree
     for (int nid = src_id+1; nid < graph->nnode; nid++) graph->node[nid] = graph->nedge;
 
     return graph;
+}
+
+void Johnson(Graph *graph) {
+    BellmanFord(graph, 0);
+
+    AllPairsDijkstra(graph);
+
+    for (int i = 0; i < graph->nnode; i++) {
+        for (int j = 0; j < graph->nnode; j++)
+            if (graph->distance[i][j] == IntMax)
+                printf("inf\t");
+            else
+                printf("%d\t", graph->distance[i][j]);
+        printf("\n");
+    }
 }
 
 int main(int argc, char *argv[]) {
@@ -73,16 +98,5 @@ int main(int argc, char *argv[]) {
 
     graph = LoadGraph(graph_file);
 
-    BellmanFord(graph, 0);
-
-    // for (int i = 0; i < graph->nnode; i++) printf("node %d\n", graph->node[i]);
-    // for (int i = 0; i < graph->nedge; i++)
-    //     if (graph->weight[i] < 0) 
-    //         printf("weight %d\n", graph->weight[i]);
-    // for (int src_nid = 0; src_nid < graph->nnode; src_nid++)
-    //     for (int eid = graph->node[src_nid]; eid < graph->node[src_nid+1]; eid++) {
-    //         int dst_nid = graph->edge[eid];
-    //         int weight = graph->weight[eid];
-    //         printf("%d to %d with weight %d\n", src_nid, dst_nid, weight);
-    //     }
+    Johnson(graph);
 }

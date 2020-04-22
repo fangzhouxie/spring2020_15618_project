@@ -59,7 +59,7 @@ Graph *LoadGraph(FILE *graph_file) {
 }
 
 void Johnson(Graph *graph) {
-    BellmanFord(graph, 0);
+    BellmanFord(graph);
     AllPairsDijkstra(graph);
 }
 

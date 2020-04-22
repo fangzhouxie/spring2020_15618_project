@@ -71,6 +71,8 @@ void Dijkstra(Graph *graph, int src_nid) {
 }
 
 void AllPairsDijkstra(Graph *graph) {
-    for (int nid = 0; nid < graph->nnode; nid++)
+    for (int nid = 0; nid < graph->nnode; nid++) {
+        printf("Dijkstra started for node %d\n", nid);
         Dijkstra(graph, nid);
+    }
 }

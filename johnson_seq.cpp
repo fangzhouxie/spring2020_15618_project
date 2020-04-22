@@ -1,4 +1,5 @@
 #include "johnson_seq.hpp"
+#include <iomanip>
 
 Graph *LoadGraph(FILE *graph_file) {
     Graph *graph = (Graph *)malloc(sizeof(Graph));
@@ -90,16 +91,26 @@ int main(int argc, char *argv[]) {
 
     Johnson(graph);
 
-    // Write result to file
-    std::ofstream f;
-    f.open("result.txt");
-    for (int i = 0; i < graph->nnode; i++) {
-        for (int j = 0; j < graph->nnode; j++)
-            if (graph->distance[i][j] == IntMax)
-                f << "inf\t\t";
-            else
-                f << graph->distance[i][j] << "\t\t";
-        f << "\n";
+    for (int i = 0; i < graph->nnode; ++i) {
+      for (int j = 0; j < graph->nnode; ++j) {
+        if (graph->distance[i][j] == IntMax)
+        std::cout << std::setw(5) << "inf";
+        else
+        std::cout << std::setw(5) << graph->distance[i][j];
+      }
+      std::cout << std::endl;
     }
-    f.close();
+
+    // Write result to file
+    // std::ofstream f;
+    // f.open("result.txt");
+    // for (int i = 0; i < graph->nnode; i++) {
+    //     for (int j = 0; j < graph->nnode; j++)
+    //         if (graph->distance[i][j] == IntMax)
+    //             f << "inf\t\t";
+    //         else
+    //             f << graph->distance[i][j] << "\t\t";
+    //     f << "\n";
+    // }
+    // f.close();
 }

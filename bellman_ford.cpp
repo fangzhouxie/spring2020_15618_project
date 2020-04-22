@@ -2,7 +2,7 @@
 
 void BellmanFord(Graph *graph) {
     printf("BellmanFord started\n");
-    
+
     int distance[graph->nnode];
 
     // Initialize distances from new source node to all nodes

@@ -22,7 +22,7 @@ typedef struct {
 
 Graph *LoadGraph(FILE *graph_file);
 
-void BellmanFord(Graph *g, int src_nide);
+void BellmanFord(Graph *g);
 
 void AllPairsDijkstra(Graph *graph);
 

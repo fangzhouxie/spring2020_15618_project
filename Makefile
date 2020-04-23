@@ -1,4 +1,4 @@
-DEBUG=1
+DEBUG=0
 CC=g++
 CXXFLAGS=-g -O3 -DDEBUG=$(DEBUG)
 OMP=-fopenmp -DOMP

@@ -50,7 +50,7 @@ void Dijkstra(Graph *graph, int src_nid) {
     }
     tmp_distance[src_nid] = 0;
     predecessor[src_nid] = src_nid;
-    
+
     for (int iter = 0; iter < graph->nnode; iter++) {
         int min_nid = FindIndexOfUnvisitedNodeWithMinDistance(graph->nnode, tmp_distance, visited);
         // No reachable unvisted nodes left
@@ -72,7 +72,9 @@ void Dijkstra(Graph *graph, int src_nid) {
 
 void AllPairsDijkstra(Graph *graph) {
     for (int nid = 0; nid < graph->nnode; nid++) {
+        #if DEBUG
         printf("Dijkstra started for node %d\n", nid);
+        #endif
         Dijkstra(graph, nid);
     }
 }

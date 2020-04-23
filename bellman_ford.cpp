@@ -1,8 +1,9 @@
 #include "johnson_seq.hpp"
 
 void BellmanFord(Graph *graph) {
+    #if DEBUG
     printf("BellmanFord started\n");
-
+    #endif
     int distance[graph->nnode];
 
     // Initialize distances from new source node to all nodes
@@ -14,7 +15,7 @@ void BellmanFord(Graph *graph) {
         for (int u = 0; u < graph->nnode; u++)
             for (int eid = graph->node[u]; eid < graph->node[u+1]; eid++) {
                 int v = graph->edge[eid];
-                int weight = graph->weight[eid]; 
+                int weight = graph->weight[eid];
                 if (distance[v] > distance[u] + weight)
                     distance[v] = distance[u] + weight;
             }

@@ -1,5 +1,6 @@
+DEBUG=0
 CC=g++
-CXXFLAGS=-g -O3
+CXXFLAGS=-g -O3 -DDEBUG=$(DEBUG)
 
 CFILES = johnson_seq.cpp bellman_ford.cpp dijkstra.cpp johnson_seq.hpp
 

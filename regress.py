@@ -1,6 +1,6 @@
 #!/usr/bin/python
-
 # Perform regression test, comparing outputs of different johnson implementation
+# Code adapted from https://github.com/cmu15418/asst3-s20/blob/master/code/regress.py
 
 import argparse
 import subprocess
@@ -9,16 +9,17 @@ import math
 import os
 import os.path
 import getopt
+from datetime import datetime
 
 # General information
 
 # Gold-standard reference program
-standardProg = "./johnson-boost"
+standardProg = "./johnson_boost"
 
 # Simulator being tested
-testProg = "./johnson-seq"
-ompTestProg = "./johnson-omp"
-cudaTestProg = "/johnson-cuda"
+testProg = "./johnson_seq"
+ompTestProg = "./johnson_omp"
+cudaTestProg = "/johnson_cuda"
 
 # Directories
 # graph files
@@ -45,7 +46,6 @@ regressionList = [
 ]
 
 def regressionName(params, standard = True, short = False):
-    #name = "%s+%s+%.2d+%s+%.2d" % params
     name = params
     if short:
         return name
@@ -90,7 +90,7 @@ def runImpl(params, standard = True, threadCount = 1, gpu = False):
         sys.stderr.write("Couldn't open file '%s' to write.  %s\n" % (pname, e))
         return False
     try:
-        sys.stderr.write("Executing " + cmdLine + " > " + regressionName(params, standard) + "\n")
+        sys.stderr.write("[" + datetime.now().strftime("%Y-%m-%d %H:%M:%S.%f") + "] " + "Executing " + cmdLine + " > " + regressionName(params, standard) + "\n")
         graphProcess = subprocess.Popen(cmd, stdout = outFile)
         graphProcess.wait()
         outFile.close()

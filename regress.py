@@ -13,12 +13,12 @@ import getopt
 # General information
 
 # Gold-standard reference program
-standardProg = "./johnson-boost"
+standardProg = "./johnson_boost"
 
 # Simulator being tested
-testProg = "./johnson-seq"
-ompTestProg = "./johnson-omp"
-cudaTestProg = "/johnson-cuda"
+testProg = "./johnson_seq"
+ompTestProg = "./johnson_omp"
+cudaTestProg = "/johnson_cuda"
 
 # Directories
 # graph files

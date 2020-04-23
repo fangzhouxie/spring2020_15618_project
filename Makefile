@@ -12,8 +12,8 @@ john-seq: $(CFILES)
 	$(CC) $(CXXFLAGS) -o johnson_seq $(CFILES)
 
 john-boost: johnson-boost.cpp
-	$(CC) $(CXXFLAGS) -o johnson-boost johnson-boost.cpp
+	$(CC) $(CXXFLAGS) -o johnson_boost johnson-boost.cpp
 
 clean:
 	rm -f johnson_seq
-	rm -f johnson-boost
+	rm -f johnson_boost

@@ -21,4 +21,5 @@ john-boost: johnson-boost.cpp
 
 clean:
 	rm -f johnson-seq
+	rm -f johnson-omp
 	rm -f johnson-boost

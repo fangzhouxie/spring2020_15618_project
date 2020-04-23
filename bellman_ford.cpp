@@ -1,4 +1,4 @@
-#include "johnson_seq.hpp"
+#include "johnson.hpp"
 
 void BellmanFord(Graph *graph) {
     #if DEBUG

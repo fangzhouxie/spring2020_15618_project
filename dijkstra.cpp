@@ -1,4 +1,4 @@
-#include "johnson_seq.hpp"
+#include "johnson.hpp"
 
 // Recursively calculate original weights
 void CalculateOriginalDistance(int src_nid, int nid, int *distance, int *predecessor, Graph *graph) {

@@ -1,4 +1,4 @@
-#include "johnson_seq.hpp"
+#include "johnson.hpp"
 #include <iomanip>
 
 Graph *LoadGraph(FILE *graph_file) {

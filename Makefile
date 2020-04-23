@@ -8,18 +8,18 @@ HFILES=johnson.hpp
 
 .PHONY: clean
 
-all: john-seq john-omp john-boost
+all: john_seq john_omp john_boost
 
-john-seq: $(CFILES) $(HFILES)
-	$(CC) $(CXXFLAGS) -o johnson-seq $(CFILES)
+john_seq: $(CFILES) $(HFILES)
+	$(CC) $(CXXFLAGS) -o johnson_seq $(CFILES)
 
-john-omp: $(CFILES) $(HFILES)
-	$(CC) $(CXXFLAGS) $(OMP) -o johnson-omp $(CFILES)
+john_omp: $(CFILES) $(HFILES)
+	$(CC) $(CXXFLAGS) $(OMP) -o johnson_omp $(CFILES)
 
-john-boost: johnson-boost.cpp
-	$(CC) $(CXXFLAGS) -o johnson-boost johnson-boost.cpp
+john_boost: johnson-boost.cpp
+	$(CC) $(CXXFLAGS) -o johnson_boost johnson-boost.cpp
 
 clean:
-	rm -f johnson-seq
-	rm -f johnson-omp
-	rm -f johnson-boost
+	rm -f johnson_seq
+	rm -f johnson_omp
+	rm -f johnson_boost

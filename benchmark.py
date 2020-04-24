@@ -113,7 +113,7 @@ def doRun(cmdList, progFileName):
         return None
     if returnCode == 0:
         delta = time.perf_counter() - tstart
-        msecs = delta * 1e6
+        msecs = delta * 1e3
         if progFile != subprocess.PIPE:
             progFile.close()
         return msecs
@@ -146,8 +146,8 @@ def runBenchmark(useRef, testId, threadCount):
     nnode, nedge, seed = benchmarkDict[testId]
     gfname = getGraph(nnode, nedge, seed)
     results = [nnode, nedge, seed, str(threadCount)]
-    prog = stdProgram if useRef else seqProgram if threadCount == 1 else ompProgram
-    clist = ["-g", graphFileName(gfname)]
+    prog = stdProgram if useRef else ompProgram
+    clist = ["-g", gfname]
     if threadCount > 1 and prog != stdProgram:
         clist += ["-t", str(threadCount)]
     # if doInstrument:
@@ -181,7 +181,7 @@ def runBenchmark(useRef, testId, threadCount):
 def formatTitle():
     ls = ["# Node", "# Edge", "Seed", "Threads", "Test (ms)"]
     if doCheck:
-         ls += ["Ref (ms)", "Speedup"]
+         ls += ["Base (ms)", "Speedup"]
     return " ".join("{0:<10}".format(t) for t in ls)
 
 def printTitle():
@@ -283,6 +283,7 @@ if __name__ == "__main__":
     if args.scale:
         threadCounts = list(range(1, defaultThreadCount+1))
         defaultTests = scalingList
+        stdProgram = seqProgram # use seq program as baseline when checking for perf scaling
     else:
         threadCounts = [args.threadCount] if args.threadCount is not None else threadCounts
     gpu = args.gpu if args.gpu is not None else gpu

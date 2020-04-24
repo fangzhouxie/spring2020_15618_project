@@ -11,6 +11,8 @@ import os.path
 import getopt
 from datetime import datetime
 
+from graph import generate_graph, graphName
+
 # General information
 
 # Gold-standard reference program
@@ -32,29 +34,24 @@ mismatchLimit = 5
 
 # Series of tests to perform.
 # Each defined by:
-#  graph file name
+#  nnode, nnedge, seed
 regressionList = [
-    "small.txt",
-    "graph1.txt",
-    # "graph2.txt",
-    # "graph3.txt",
-    # "graph4.txt",
-    # "graph5.txt",
-    # "graph6.txt",
-    # "graph7.txt",
-    # "graph8.txt",
+    (64,   200,    1),
+    (512,  4000,   2),
+    (1024, 10000,  3),
 ]
 
 def regressionName(params, standard = True, short = False):
-    name = params
+    nnode, nedge, seed = params
+    name = "n{}-e{}-s{}.txt".format(nnode, nedge, seed)
     if short:
         return name
     return ("ref" if standard else "tst") +  "-" + name
 
-def regressionCommand(params, standard = True, threadCount = 1, gpu = False):
-    graphFile = params
+def regressionCommand(graphFileName, standard = True, threadCount = 1, gpu = False):
+    #nnode, nedge, seed = params
 
-    graphFileName = dataDir + "/" + graphFile
+    #graphFileName = graphName(nnode, nedge, seed)
 
     prog = ''
     prelist = []
@@ -80,7 +77,15 @@ def regressionCommand(params, standard = True, threadCount = 1, gpu = False):
 
 
 def runImpl(params, standard = True, threadCount = 1, gpu = False):
-    cmd = regressionCommand(params, standard, threadCount, gpu)
+    nnode, nedge, seed = params
+    graphFileName = graphName(nnode, nedge, seed)
+
+    if not os.path.exists(graphFileName):
+        # generate graph
+        sys.stderr.write("Generating graph: %s" % str(graphFileName))
+        generate_graph(nnode, nedge, seed)
+
+    cmd = regressionCommand(graphFileName, standard, threadCount, gpu)
     cmdLine = " ".join(cmd)
 
     pname = cacheDir + "/" + regressionName(params, standard)

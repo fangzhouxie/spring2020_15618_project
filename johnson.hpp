@@ -7,6 +7,8 @@
 #define MaxLineLength 1024
 #define IntMax __INT32_MAX__
 
+extern char display;
+
 typedef struct {
     int nnode;
     int nedge;

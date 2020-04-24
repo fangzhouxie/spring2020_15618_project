@@ -1,6 +1,8 @@
 #include "johnson.hpp"
 #include <iomanip>
 
+char display = 0;
+
 Graph *LoadGraph(FILE *graph_file) {
     Graph *graph = (Graph *)malloc(sizeof(Graph));
     char linebuf[MaxLineLength];
@@ -70,12 +72,15 @@ int main(int argc, char *argv[]) {
     Graph *graph;
 
     // parse command line arguments
-    while ((c = getopt(argc, argv, "g:")) != -1) {
+    while ((c = getopt(argc, argv, "g:v")) != -1) {
         switch(c) {
             case 'g':
                 graph_file = fopen(optarg, "r");
                 if (graph_file == NULL)
                     printf("Couldn't open graph file %s\n", optarg);
+                break;
+            case 'v':
+                display = 1;
                 break;
             default:
                 printf("Unknown option '%c'\n", c);

@@ -1,7 +1,7 @@
 #include "johnson.hpp"
 #include <iomanip>
 
-char display = 0;
+char display;
 
 static void usage(char *name) {
     char use_string[] = "-g GFILE [-v]";
@@ -9,6 +9,7 @@ static void usage(char *name) {
     printf("   -h        Print this message\n");
     printf("   -g GFILE  Graph file\n");
     printf("   -v        Operate in verbose mode\n");
+    printf("   -t THD    Set number of threads for OMP (default is number of processors)\n");
     exit(0);
 }
 
@@ -79,9 +80,13 @@ int main(int argc, char *argv[]) {
     int c;
     FILE *graph_file = NULL;
     Graph *graph;
+    display = 0;
+    #if OMP
+    int thread_count = omp_get_num_procs();
+    #endif
 
     // parse command line arguments
-    while ((c = getopt(argc, argv, "hg:v")) != -1) {
+    while ((c = getopt(argc, argv, "hg:t:v")) != -1) {
         switch(c) {
             case 'g':
                 graph_file = fopen(optarg, "r");
@@ -90,6 +95,13 @@ int main(int argc, char *argv[]) {
                 break;
             case 'v':
                 display = 1;
+                break;
+            case 't':
+                #if OMP
+                thread_count = atoi(optarg);
+                #else
+                printf("Setting number of threads for sequential version has no effect\n");
+                #endif
                 break;
             case 'h':
                 usage(argv[0]);
@@ -106,8 +118,11 @@ int main(int argc, char *argv[]) {
         return 0;
     }
 
-    graph = LoadGraph(graph_file);
+    #if OMP
+    omp_set_num_threads(thread_count);
+    #endif
 
+    graph = LoadGraph(graph_file);
     Johnson(graph);
 
     for (int i = 0; i < graph->nnode; ++i) {

@@ -1,8 +1,16 @@
+#ifndef OMP
+#define OMP 0
+#endif
+
 #include <iostream>
 #include <fstream>
 #include <stdio.h>
 #include <stdlib.h>
 #include <getopt.h>
+
+#if OMP
+#include <omp.h>
+#endif
 
 #define MaxLineLength 1024
 #define IntMax __INT32_MAX__

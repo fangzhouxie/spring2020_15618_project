@@ -72,7 +72,7 @@ void Dijkstra(Graph *graph, int src_nid) {
 
 void AllPairsDijkstra(Graph *graph) {
     #if OMP
-        #pragma omp parallel for schedule(dynamic, 32)
+    #pragma omp parallel for schedule(dynamic, 32)
     #endif
     for (int nid = 0; nid < graph->nnode; nid++) {
         if (display)

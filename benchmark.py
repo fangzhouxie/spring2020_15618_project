@@ -43,12 +43,15 @@ mismatchLimit = 5
 
 # Graph: (#node, #edge, #seed)
 benchmarkDict = {
-    "A": (64,   200,    1),
-    "B": (512,  4000,   2),
-    "C": (1024, 10000,  3),
+    # density = 0.5
+    "small":  (256,   16320,   1),
+    "medium": (1024,  517888,  2),
+    "large":  (4096,  4194304, 3),
+    # density = 0.125
+    "medium-sparse": (1024, 129472, 2)
 }
 
-scalingList = ["C"]
+scalingList = ['small', 'medium', 'medium-sparse']
 
 defaultTests = benchmarkDict.keys()
 
@@ -148,7 +151,7 @@ def runBenchmark(useRef, testId, threadCount):
     results = [nnode, nedge, seed, str(threadCount)]
     prog = stdProgram if useRef else ompProgram
     clist = ["-g", gfname]
-    if threadCount > 1 and prog != stdProgram:
+    if prog not in [stdProgram, seqProgram]:
         clist += ["-t", str(threadCount)]
     # if doInstrument:
     #     clist += ["-I"]

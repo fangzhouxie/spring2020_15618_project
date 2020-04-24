@@ -1,4 +1,4 @@
-#include "johnson_seq.hpp"
+#include "johnson.hpp"
 
 // Recursively calculate original weights
 void CalculateOriginalDistance(int src_nid, int nid, int *distance, int *predecessor, Graph *graph) {
@@ -71,6 +71,9 @@ void Dijkstra(Graph *graph, int src_nid) {
 }
 
 void AllPairsDijkstra(Graph *graph) {
+    #if OMP
+        #pragma omp parallel for schedule(dynamic, 32)
+    #endif
     for (int nid = 0; nid < graph->nnode; nid++) {
         #if DEBUG
         printf("Dijkstra started for node %d\n", nid);

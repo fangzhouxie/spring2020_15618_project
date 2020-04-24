@@ -48,6 +48,8 @@ benchmarkDict = {
     "C": (1024, 10000,  3),
 }
 
+scalingList = ["C"]
+
 defaultTests = benchmarkDict.keys()
 
 # Does the test program run on GPU
@@ -145,7 +147,9 @@ def runBenchmark(useRef, testId, threadCount):
     gfname = getGraph(nnode, nedge, seed)
     results = [nnode, nedge, seed, str(threadCount)]
     prog = stdProgram if useRef else seqProgram if threadCount == 1 else ompProgram
-    clist = ["-g", graphFileName(gfname)]#, "-t", str(threadCount)]
+    clist = ["-g", graphFileName(gfname)]
+    if threadCount > 1:
+        clist += ["-t", str(threadCount)]
     # if doInstrument:
     #     clist += ["-I"]
     fileName = None
@@ -177,10 +181,15 @@ def runBenchmark(useRef, testId, threadCount):
 def formatTitle():
     ls = ["# Node", "# Edge", "Seed", "Threads", "Test (ms)"]
     if doCheck:
-         ls += ["Ref (ms)"]
+         ls += ["Ref (ms)", "Speedup"]
     return " ".join("{0:<10}".format(t) for t in ls)
 
-def sweep(testList, threadCount):
+def printTitle():
+    outmsg("+" * 80)
+    outmsg(formatTitle())
+    outmsg("+" * 80)
+
+def sweep(testList, threadCounts):
     tcount = 0
     rcount = 0
     sum = 0.0
@@ -189,25 +198,35 @@ def sweep(testList, threadCount):
     cresults = None
     totalPoints = 0
     for t in testList:
-        ok = True
-        results = runBenchmark(False, t, threadCount)
-        if results is not None and doCheck:
-            cresults = runBenchmark(True, t, threadCount)
-            if referenceFileName != "" and testFileName != "":
-                ok = checkFiles(referenceFileName, testFileName)
-        if not ok:
-            outmsg("TEST FAILED")
-        if  results is not None:
-            tcount += 1
-            if cresults is not None:
-                msecs = cresults[-1]
-                results += [msecs]
-            resultList.append(results)
-    outmsg("+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++")
-    outmsg(formatTitle())
-    outmsg("+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++")
-    for result in resultList:
-        outmsg(" ".join("{0:<10}".format(r) for r in result))
+        for tc in threadCounts:
+            tstart = time.perf_counter()
+            ok = True
+            results = runBenchmark(False, t, tc)
+            if results is not None and doCheck:
+                cresults = runBenchmark(True, t, tc)
+                if referenceFileName != "" and testFileName != "":
+                    ok = checkFiles(referenceFileName, testFileName)
+            if not ok:
+                outmsg("TEST FAILED")
+            if results is not None:
+                tcount += 1
+                if cresults is not None:
+                    msecs = cresults[-1]
+                    speedup = float(msecs) / float(results[-1])
+                    results += [msecs, "%.2fx" % speedup]
+                resultList.append(results)
+            secs = time.perf_counter() - tstart
+            print("Test time for %d threads = %.2f secs." % (tc, secs))
+        if len(threadCounts) > 1:
+            printTitle() # one table per test
+            for result in resultList:
+                outmsg(" ".join("{0:<10}".format(r) for r in result))
+            resultList = []
+
+    if len(threadCounts) == 1:
+        printTitle() # one table in total
+        for result in resultList:
+            outmsg(" ".join("{0:<10}".format(r) for r in result))
 
 def generateFileName(template):
     global uniqueId
@@ -234,11 +253,7 @@ def run():
         raise NotImplementedException();
     else:
         gstart = time.perf_counter()
-        for t in threadCounts:
-            tstart = time.perf_counter()
-            sweep(testList, t)
-            secs = time.perf_counter() - tstart
-            print("Test time for %d threads = %.2f secs." % (t, secs))
+        sweep(testList, threadCounts)
         if len(threadCounts) > 1:
             secs = time.perf_counter() - gstart
             print("Overall test time = %.2f secs." % (secs))
@@ -249,6 +264,8 @@ if __name__ == "__main__":
                     help="Quick mode: do not compare with reference solution")
     parser.add_argument("-I", "--instrument", action="store_true",
                     help="Instrument activities")
+    parser.add_argument("-S", "--scale", action="store_true",
+                        help="Instrument activities")
     parser.add_argument("-r", "--runs", type=int,
                     help="Specify number of times each benchmark is run")
     parser.add_argument("-t", "--threadCount", type=int,
@@ -263,7 +280,11 @@ if __name__ == "__main__":
     doCheck = not args.quick if args.quick is not None else doCheck
     doInstrument = args.instrument if args.instrument is not None else doInstrument
     runCount = args.runs if args.runs is not None else runCount
-    threadCounts = [args.threadCount] if args.threadCount is not None else threadCounts
+    if args.scale:
+        threadCounts = list(range(1, defaultThreadCount+1))
+        defaultTests = scalingList
+    else:
+        threadCounts = [args.threadCount] if args.threadCount is not None else threadCounts
     gpu = args.gpu if args.gpu is not None else gpu
     outFile = args.outfile if args.outfile is not None else outFile
 

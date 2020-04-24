@@ -3,7 +3,7 @@
 
 char display;
 
-static void usage(char *name) {
+static void Usage(char *name) {
     char use_string[] = "-g GFILE [-v]";
     printf("Usage: %s %s\n", name, use_string);
     printf("   -h        Print this message\n");
@@ -104,17 +104,17 @@ int main(int argc, char *argv[]) {
                 #endif
                 break;
             case 'h':
-                usage(argv[0]);
+                Usage(argv[0]);
                 break;
             default:
                 printf("Unknown option '%c'\n", c);
-                usage(argv[0]);
+                Usage(argv[0]);
         }
     }
 
     if (graph_file == NULL) {
 	    printf("Need graph file\n");
-        usage(argv[0]);
+        Usage(argv[0]);
         return 0;
     }
 

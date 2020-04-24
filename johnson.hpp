@@ -30,6 +30,8 @@ typedef struct {
     int **predecessor;
 } Graph;
 
+static void Usage(char *name);
+
 Graph *LoadGraph(FILE *graph_file);
 
 void BellmanFord(Graph *g);

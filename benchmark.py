@@ -148,7 +148,7 @@ def runBenchmark(useRef, testId, threadCount):
     results = [nnode, nedge, seed, str(threadCount)]
     prog = stdProgram if useRef else seqProgram if threadCount == 1 else ompProgram
     clist = ["-g", graphFileName(gfname)]
-    if threadCount > 1:
+    if threadCount > 1 and prog != stdProgram:
         clist += ["-t", str(threadCount)]
     # if doInstrument:
     #     clist += ["-I"]

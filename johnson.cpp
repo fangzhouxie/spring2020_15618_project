@@ -3,6 +3,15 @@
 
 char display = 0;
 
+static void usage(char *name) {
+    char use_string[] = "-g GFILE [-v]";
+    printf("Usage: %s %s\n", name, use_string);
+    printf("   -h        Print this message\n");
+    printf("   -g GFILE  Graph file\n");
+    printf("   -v        Operate in verbose mode\n");
+    exit(0);
+}
+
 Graph *LoadGraph(FILE *graph_file) {
     Graph *graph = (Graph *)malloc(sizeof(Graph));
     char linebuf[MaxLineLength];
@@ -72,7 +81,7 @@ int main(int argc, char *argv[]) {
     Graph *graph;
 
     // parse command line arguments
-    while ((c = getopt(argc, argv, "g:v")) != -1) {
+    while ((c = getopt(argc, argv, "hg:v")) != -1) {
         switch(c) {
             case 'g':
                 graph_file = fopen(optarg, "r");
@@ -82,13 +91,18 @@ int main(int argc, char *argv[]) {
             case 'v':
                 display = 1;
                 break;
+            case 'h':
+                usage(argv[0]);
+                break;
             default:
                 printf("Unknown option '%c'\n", c);
+                usage(argv[0]);
         }
     }
 
     if (graph_file == NULL) {
 	    printf("Need graph file\n");
+        usage(argv[0]);
         return 0;
     }
 

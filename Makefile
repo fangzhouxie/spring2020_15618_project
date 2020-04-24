@@ -1,19 +1,25 @@
 DEBUG=0
 CC=g++
 CXXFLAGS=-g -O3 -DDEBUG=$(DEBUG)
+OMP=-fopenmp -DOMP
 
-CFILES = johnson_seq.cpp bellman_ford.cpp dijkstra.cpp johnson_seq.hpp
+CFILES=johnson.cpp bellman_ford.cpp dijkstra.cpp
+HFILES=johnson.hpp
 
 .PHONY: clean
 
-all: john-seq john-boost
+all: john_seq john_omp john_boost
 
-john-seq: $(CFILES)
+john_seq: $(CFILES) $(HFILES)
 	$(CC) $(CXXFLAGS) -o johnson_seq $(CFILES)
 
-john-boost: johnson-boost.cpp
+john_omp: $(CFILES) $(HFILES)
+	$(CC) $(CXXFLAGS) $(OMP) -o johnson_omp $(CFILES)
+
+john_boost: johnson-boost.cpp
 	$(CC) $(CXXFLAGS) -o johnson_boost johnson-boost.cpp
 
 clean:
 	rm -f johnson_seq
+	rm -f johnson_omp
 	rm -f johnson_boost

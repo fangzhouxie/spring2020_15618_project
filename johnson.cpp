@@ -1,6 +1,18 @@
 #include "johnson.hpp"
 #include <iomanip>
 
+char display;
+
+static void Usage(char *name) {
+    char use_string[] = "-g GFILE [-v]";
+    printf("Usage: %s %s\n", name, use_string);
+    printf("   -h        Print this message\n");
+    printf("   -g GFILE  Graph file\n");
+    printf("   -v        Operate in verbose mode\n");
+    printf("   -t THD    Set number of threads for OMP (default is number of processors)\n");
+    exit(0);
+}
+
 Graph *LoadGraph(FILE *graph_file) {
     Graph *graph = (Graph *)malloc(sizeof(Graph));
     char linebuf[MaxLineLength];
@@ -68,27 +80,49 @@ int main(int argc, char *argv[]) {
     int c;
     FILE *graph_file = NULL;
     Graph *graph;
+    display = 0;
+    #if OMP
+    int thread_count = omp_get_num_procs();
+    #endif
 
     // parse command line arguments
-    while ((c = getopt(argc, argv, "g:")) != -1) {
+    while ((c = getopt(argc, argv, "hg:t:v")) != -1) {
         switch(c) {
             case 'g':
                 graph_file = fopen(optarg, "r");
                 if (graph_file == NULL)
                     printf("Couldn't open graph file %s\n", optarg);
                 break;
+            case 'v':
+                display = 1;
+                break;
+            case 't':
+                #if OMP
+                thread_count = atoi(optarg);
+                #else
+                printf("Setting number of threads for sequential version has no effect\n");
+                #endif
+                break;
+            case 'h':
+                Usage(argv[0]);
+                break;
             default:
                 printf("Unknown option '%c'\n", c);
+                Usage(argv[0]);
         }
     }
 
     if (graph_file == NULL) {
 	    printf("Need graph file\n");
+        Usage(argv[0]);
         return 0;
     }
 
-    graph = LoadGraph(graph_file);
+    #if OMP
+    omp_set_num_threads(thread_count);
+    #endif
 
+    graph = LoadGraph(graph_file);
     Johnson(graph);
 
     for (int i = 0; i < graph->nnode; ++i) {

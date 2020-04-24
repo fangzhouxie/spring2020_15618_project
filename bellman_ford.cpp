@@ -1,9 +1,8 @@
 #include "johnson.hpp"
 
 void BellmanFord(Graph *graph) {
-    #if DEBUG
-    printf("BellmanFord started\n");
-    #endif
+    if (display)
+        printf("BellmanFord started\n");
     int distance[graph->nnode];
 
     // Initialize distances from new source node to all nodes

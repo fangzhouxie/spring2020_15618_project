@@ -1,6 +1,5 @@
-DEBUG=0
 CC=g++
-CXXFLAGS=-g -O3 -DDEBUG=$(DEBUG)
+CXXFLAGS=-g -O3
 OMP=-fopenmp -DOMP
 
 CFILES=johnson.cpp bellman_ford.cpp dijkstra.cpp

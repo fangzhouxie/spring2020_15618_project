@@ -72,12 +72,11 @@ void Dijkstra(Graph *graph, int src_nid) {
 
 void AllPairsDijkstra(Graph *graph) {
     #if OMP
-        #pragma omp parallel for schedule(dynamic, 32)
+    #pragma omp parallel for schedule(dynamic, 32)
     #endif
     for (int nid = 0; nid < graph->nnode; nid++) {
-        #if DEBUG
-        printf("Dijkstra started for node %d\n", nid);
-        #endif
+        if (display)
+            printf("Dijkstra started for node %d\n", nid);
         Dijkstra(graph, nid);
     }
 }

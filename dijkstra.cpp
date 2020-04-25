@@ -27,6 +27,9 @@ int FindIndexOfUnvisitedNodeWithMinDistance(int nnode, int *distance, char *visi
     int min_nid = -1;
     int min_distance = IntMax;
 
+    #if OMP
+    #pragma omp taskloop
+    #endif
     for (int nid = 0; nid < nnode; nid++)
         if (!visited[nid] && distance[nid] <= min_distance) {
             min_nid = nid;
@@ -42,6 +45,9 @@ void Dijkstra(Graph *graph, int src_nid) {
     int tmp_distance[graph->nnode];
     char visited[graph->nnode];
 
+    #if OMP
+    #pragma omp taskloop
+    #endif
     for (int nid = 0; nid < graph->nnode; nid++) {
         distance[nid] = -1;
         predecessor[nid] = -1;
@@ -66,6 +72,9 @@ void Dijkstra(Graph *graph, int src_nid) {
         }
     }
 
+    #if OMP
+    #pragma omp taskloop
+    #endif
     for (int nid = 0; nid < graph->nnode; nid++)
         CalculateOriginalDistance(src_nid, nid, distance, predecessor, graph);
 }

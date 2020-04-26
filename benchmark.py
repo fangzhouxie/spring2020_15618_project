@@ -46,7 +46,7 @@ benchmarkDict = {
     # density = 0.5
     "small":  (256,   16320,   1),
     "medium": (1024,  517888,  2),
-    "large":  (4096,  4194304, 3),
+    # "large":  (4096,  4194304, 3),
     # density = 0.125
     "medium-sparse": (1024, 129472, 2)
 }
@@ -70,6 +70,8 @@ threadCounts = [defaultThreadCount]
 uniqueId = ""
 
 def outmsg(s, noreturn = False):
+    if isinstance(s, bytes):
+        s = s.decode("utf-8", "ignore")
     if len(s) > 0 and s[-1] != '\n' and not noreturn:
         s += "\n"
     sys.stdout.write(s)
@@ -149,12 +151,12 @@ def runBenchmark(useRef, testId, threadCount):
     nnode, nedge, seed = benchmarkDict[testId]
     gfname = getGraph(nnode, nedge, seed)
     results = [nnode, nedge, seed, str(threadCount)]
-    prog = stdProgram if useRef else ompProgram
+    prog = stdProgram if useRef else seqProgram if threadCount == 1 else ompProgram
     clist = ["-g", gfname]
     if prog not in [stdProgram, seqProgram]:
         clist += ["-t", str(threadCount)]
-    # if doInstrument:
-    #     clist += ["-I"]
+    if doInstrument:
+        clist += ["-I"]
     fileName = None
     if not useRef:
         name = testName(testId, threadCount)
@@ -283,6 +285,7 @@ if __name__ == "__main__":
     doCheck = not args.quick if args.quick is not None else doCheck
     doInstrument = args.instrument if args.instrument is not None else doInstrument
     runCount = args.runs if args.runs is not None else runCount
+    # Scaling mode: vary the number of threads
     if args.scale:
         threadCounts = list(range(1, defaultThreadCount+1))
         defaultTests = scalingList

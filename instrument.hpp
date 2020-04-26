@@ -23,7 +23,7 @@ With OMP:
 
 /* Categories of activities */
 
-typedef enum { LOAD_GRAPH, PRINT_GRAPH, BELLMAN_FORD, DIJKSTRA, ACTIVITY_OVERHEAD, ACTIVITY_COUNT} activity_t;
+typedef enum { LOAD_GRAPH, PRINT_GRAPH, BELLMAN_FORD, DIJKSTRA, JOHNSON_BOOST, ACTIVITY_OVERHEAD, ACTIVITY_COUNT } activity_t;
 
 void track_activity(bool enable);
 void start_activity(activity_t a);

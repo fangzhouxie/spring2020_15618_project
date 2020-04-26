@@ -34,6 +34,7 @@ testFileName = ""
 referenceFileName = ""
 
 doInstrument = False
+instColumns = ["load_graph", "print_graph", "bellman_ford", "dijkstra", "overhead", "unknown", "elapsed"]
 
 # How many times does each benchmark get run?
 runCount = 3
@@ -51,7 +52,7 @@ benchmarkDict = {
     "medium-sparse": (1024, 129472, 2)
 }
 
-scalingList = ['small', 'medium', 'medium-sparse']
+scalingList = ['small']#, 'medium', 'medium-sparse']
 
 defaultTests = benchmarkDict.keys()
 
@@ -91,15 +92,21 @@ def graphFileName(fname):
 def saveFileName(useRef, testId, threadCount):
     return saveDirectory + "/" + ("ref-" if useRef else "tst-") + testName(testId, threadCount)
 
+def parseInstrumentResult(s):
+    res = s.decode("utf-8", "ignore").split()
+    msecs, task = res[0], res[-1]
+    return msecs, task
+
 def doRun(cmdList, progFileName):
     cmdLine = " ".join(cmdList)
     progFile = subprocess.PIPE
+    instDict = {} # instrumentation results
     if progFileName is not None:
         try:
             progFile = open(progFileName, 'w')
         except:
             print("Couldn't open output file '%s'" % progFileName)
-            return None
+            return None, {}
     tstart = time.perf_counter()
     try:
         outmsg("Running '%s > %s'" % (cmdLine, progFileName))
@@ -109,35 +116,44 @@ def doRun(cmdList, progFileName):
             progFile.close()
         returnCode = progProcess.returncode
         # Echo any results printed by simulator on stderr onto stdout
-        for line in progProcess.stderr:
-            outmsg(line)
+        if doInstrument:
+            for line in progProcess.stderr:
+                msecs, task = parseInstrumentResult(line)
+                instDict[task] = msecs
+        else:
+            for line in progProcess.stderr:
+                outmsg(line)
     except Exception as e:
         print("Execution of command '%s' failed. %s" % (cmdLine, e))
         if progFile != subprocess.PIPE:
             progFile.close()
-        return None
+        return None, {}
     if returnCode == 0:
         delta = time.perf_counter() - tstart
         msecs = delta * 1e3
         if progFile != subprocess.PIPE:
             progFile.close()
-        return msecs
+        return msecs, instDict
     else:
         print("Execution of command '%s' gave return code %d" % (cmdLine, returnCode))
         if progFile != subprocess.PIPE:
             progFile.close()
-        return None
+        return None, {}
 
 def bestRun(cmdList, progFileName):
     sofar = 1e6
+    d = {}
     for r in range(runCount):
         if runCount > 1:
             outmsg("Run #%d:" % (r+1), noreturn = True)
-        secs = doRun(cmdList, progFileName)
+        secs, instDict = doRun(cmdList, progFileName)
         if secs is None:
-            return None
-        sofar = min(sofar, secs)
-    return sofar
+            return None, {}
+        if secs < sofar:
+            sofar = secs
+            d = instDict
+        #sofar = min(sofar, secs)
+    return sofar, d
 
 def getGraph(nnode, nedge, seed):
     gfname = graphName(nnode, nedge, seed)
@@ -176,12 +192,12 @@ def runBenchmark(useRef, testId, threadCount):
 
     cmd = [prog] + clist
     cmdLine = " ".join(cmd)
-    secs = bestRun(cmd, fileName)
+    secs, instDict = bestRun(cmd, fileName)
     if secs is None:
-        return None
+        return None, {}
     else:
         results.append("%.2f" % secs)
-        return results
+        return results, instDict
 
 def formatTitle():
     ls = ["# Node", "# Edge", "Seed", "Threads", "Test (ms)"]
@@ -202,13 +218,18 @@ def sweep(testList, threadCounts):
     resultList = []
     cresults = None
     totalPoints = 0
+    instResultList = []
+    instResult = None
+    cinstResult = None
     for t in testList:
+        if len(threadCounts) > 1 and doCheck:
+            cresults, cinstResult = runBenchmark(True, t, 1)
         for tc in threadCounts:
             tstart = time.perf_counter()
             ok = True
-            results = runBenchmark(False, t, tc)
-            if results is not None and doCheck:
-                cresults = runBenchmark(True, t, tc)
+            results, instResult = runBenchmark(False, t, tc)
+            if results is not None and doCheck and len(threadCounts) <= 1:
+                cresults, _ = runBenchmark(True, t, tc)
                 if referenceFileName != "" and testFileName != "":
                     ok = checkFiles(referenceFileName, testFileName)
             if not ok:
@@ -220,18 +241,41 @@ def sweep(testList, threadCounts):
                     speedup = float(msecs) / float(results[-1])
                     results += [msecs, "%.2fx" % speedup]
                 resultList.append(results)
+            if instResult is not None:
+                instResultList.append(instResult)
             secs = time.perf_counter() - tstart
             print("Test time for %d threads = %.2f secs." % (tc, secs))
         if len(threadCounts) > 1:
             printTitle() # one table per test
             for result in resultList:
                 outmsg(" ".join("{0:<10}".format(r) for r in result))
+
+            if len(instResultList) > 0:
+                generateInstResultTable(resultList, instResultList, cinstResult)
+
             resultList = []
+            instResultList = []
 
     if len(threadCounts) == 1:
         printTitle() # one table in total
         for result in resultList:
             outmsg(" ".join("{0:<10}".format(r) for r in result))
+
+        if len(instResultList) > 0:
+            generateInstResultTable(resultList, instResultList, cinstResult)
+
+
+def generateInstResultTable(resultList, instResultList, cinstResult):
+    outmsg("+" * 100)
+    if len(resultList) > 0:
+        nnode, nedge, seed = resultList[0][:3]
+        outmsg(" " * 35 + "{} Nodes, {} Edges, Seed {}".format(nnode, nedge, seed))
+    outmsg("{0:<8}".format("Thread") + "".join("{0:<14}".format(t) for t in instColumns))
+    outmsg("+" * 100)
+    if cinstResult is not None:
+        outmsg("{0:<8}".format("Ref") + "".join("{0:<14}".format(cinstResult.get(c, 0.0)) for c in instColumns))
+    for result, instResult in zip(resultList, instResultList):
+        outmsg("{0:<8}".format(result[3]) + "".join("{0:<14}".format(instResult.get(c, 0.0)) for c in instColumns))
 
 def generateFileName(template):
     global uniqueId

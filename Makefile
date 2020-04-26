@@ -2,8 +2,10 @@ CC=g++
 CXXFLAGS=-g -O3
 OMP=-fopenmp -DOMP
 
-CFILES=johnson.cpp bellman_ford.cpp dijkstra.cpp
-HFILES=johnson.hpp
+CFILES=johnson.cpp bellman_ford.cpp dijkstra.cpp cycletimer.cpp instrument.cpp
+HFILES=johnson.hpp cycletimer.hpp instrument.hpp
+BCFILES=johnson-boost.cpp
+BHFILES=johnson-boost.hpp
 
 .PHONY: clean
 
@@ -15,8 +17,8 @@ john_seq: $(CFILES) $(HFILES)
 john_omp: $(CFILES) $(HFILES)
 	$(CC) $(CXXFLAGS) $(OMP) -o johnson_omp $(CFILES)
 
-john_boost: johnson-boost.cpp
-	$(CC) $(CXXFLAGS) -o johnson_boost johnson-boost.cpp
+john_boost: $(BCFILES) $(BHFILES)
+	$(CC) $(CXXFLAGS) -o johnson_boost $(BCFILES)
 
 clean:
 	rm -f johnson_seq

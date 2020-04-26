@@ -15,7 +15,7 @@
 #define MAX_THREAD 64
 
 /* Instrument different sections of program */
-static const char *activity_name[ACTIVITY_COUNT] = { "load_graph", "print_graph", "bellman_ford", "dijkstra", "overhead"};
+static const char *activity_name[ACTIVITY_COUNT] = { "load_graph", "print_graph", "bellman_ford", "dijkstra", "johnson", "overhead"};
 
 static bool tracking = false;
 static double global_start_time = 0.0;
@@ -62,10 +62,10 @@ void show_activity(FILE *f, bool enable) {
       	unknown -= global_accum[a];
       	double ms = global_accum[a] * 1000.0;
       	double pct = global_accum[a] / elapsed * 100.0;
-      	fprintf(f, "    %8d ms    %5.1f %%    %s\n", (int) ms, pct, activity_name[a]);
+      	fprintf(f, "    %8.2f ms    %5.1f %%    %s\n", ms, pct, activity_name[a]);
     }
     double ums = unknown * 1000.0;
     double upct = unknown / elapsed * 100.0;
-    fprintf(f, "    %8d ms    %5.1f %%    unknown\n", (int) ums, upct);
-    fprintf(f, "    %8d ms    %5.1f %%    elapsed\n", (int) (elapsed * 1000.0), 100.0);
+    fprintf(f, "    %8.2f ms    %5.1f %%    unknown\n", ums, upct);
+    fprintf(f, "    %8.2f ms    %5.1f %%    elapsed\n", (elapsed * 1000.0), 100.0);
 }

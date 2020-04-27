@@ -266,16 +266,32 @@ def sweep(testList, threadCounts):
 
 
 def generateInstResultTable(resultList, instResultList, cinstResult):
-    outmsg("+" * 100)
+    bf, dijkstra = None, None
+    cols = ["Thread", "load_graph", "print_graph", "bellman_ford", "dijkstra", "overhead", "unknown", "elapsed", "BF Speedup", "D Speedup"]
+    widths = {"Thread": 8, "load_graph": 12, "print_graph": 13, "bellman_ford": 14, "dijkstra": 10, "overhead": 10, "unknown": 8, "elapsed": 8, "BF Speedup": 12, "D Speedup": 12}
+
+    outmsg("+" * 115)
     if len(resultList) > 0:
         nnode, nedge, seed = resultList[0][:3]
         outmsg(" " * 35 + "{} Nodes, {} Edges, Seed {}".format(nnode, nedge, seed))
-    outmsg("{0:<8}".format("Thread") + "".join("{0:<14}".format(t) for t in instColumns))
-    outmsg("+" * 100)
+    msg = "{0:<8} {1:<12} {2:<13} {3:<14} {4:<10} {5:<10} {6:<8} {7:<8} {8:<12} {9:<12}".format("Thread", "load_graph", "print_graph", "bellman_ford", "dijkstra", "overhead", "unknown", "elapsed", "BF Speedup", "D Speedup")
+    outmsg(msg)
+    outmsg("+" * 115)
+
     if cinstResult is not None:
-        outmsg("{0:<8}".format("Ref") + "".join("{0:<14}".format(cinstResult.get(c, 0.0)) for c in instColumns))
+        l, p, bf, d, o, u, e = [cinstResult.get(c, 0.0) for c in instColumns]
+        msg = "{0:<8} {1:<12} {2:<13} {3:<14} {4:<10} {5:<10} {6:<8} {7:<8}".format("Ref", l, p, bf, d, o, u, e)
+        outmsg(msg)
+        bf_ref, d_ref = float(bf), float(d)
     for result, instResult in zip(resultList, instResultList):
-        outmsg("{0:<8}".format(result[3]) + "".join("{0:<14}".format(instResult.get(c, 0.0)) for c in instColumns))
+        l, p, bf, d, o, u, e = [instResult.get(c, 0.0) for c in instColumns]
+        bf_speedup, dijkstra_speedup = "-", "-"
+        if bf and bf_ref:
+            bf_speedup = "%.2fx" % (bf_ref/float(bf))
+        if d and d_ref:
+            dijkstra_speedup = "%.2fx" % (d_ref/float(d))
+        msg = "{0:<8} {1:<12} {2:<13} {3:<14} {4:<10} {5:<10} {6:<8} {7:<8} {8:<12} {9:<12}".format(result[3], l, p, bf, d, o, u, e, bf_speedup, dijkstra_speedup)
+        outmsg(msg)
 
 def generateFileName(template):
     global uniqueId

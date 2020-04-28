@@ -259,7 +259,18 @@ int main(int argc, char *argv[]) {
     graph = LoadGraph(graph_file);
 
     Graph *device_graph;
-    cudaMalloc(&device_graph, sizeof(Graph));
+    cudaMalloc(&device_graph, sizeof(graph));
+    // cudaMalloc(&device_graph->node, graph->nnode * sizeof(int));
+    // cudaMalloc(&device_graph->edge, graph->nedge * sizeof(int));
+    // cudaMalloc(&device_graph->weight, graph->nedge * sizeof(int));
+    // cudaMalloc(&device_graph->new_weight, graph->nedge * sizeof(int));
+    // cudaMalloc(&device_graph->distance, graph->nnode * sizeof(int *));
+    // cudaMalloc(&device_graph->predecessor, graph->nnode * sizeof(int *));
+    // for (int nid = 0; nid < graph->nnode; nid++) {
+    //     cudaMalloc(&device_graph->distance[nid], graph->nnode * sizeof(int));
+    //     cudaMalloc(&device_graph->predecessor[nid], graph->nnode * sizeof(int));
+    // }
+    
     cudaMemcpy(device_graph, graph, sizeof(Graph), cudaMemcpyHostToDevice);
 
     const int ThreadsPerBlock = 512;

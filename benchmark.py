@@ -52,7 +52,7 @@ benchmarkDict = {
     "medium-sparse": (1024, 129472, 2)
 }
 
-scalingList = ['small']#, 'medium', 'medium-sparse']
+scalingList = ['small', 'medium', 'medium-sparse']
 
 defaultTests = benchmarkDict.keys()
 

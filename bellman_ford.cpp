@@ -5,10 +5,16 @@ void BellmanFord(Graph *graph) {
         printf("BellmanFord started\n");
     int distance[graph->nnode];
 
+    #if OMP
+    #pragma omp parallel for
+    #endif
     // Initialize distances from new source node to all nodes
     for (int nid = 0; nid < graph->nnode; nid++)
         distance[nid] = 0;
 
+    #if OMP
+    #pragma omp parallel for
+    #endif
     // Iterate through the graph V - 1 times
     for (int iter = 0; iter < graph->nnode; iter++)
         for (int u = 0; u < graph->nnode; u++)
@@ -19,6 +25,9 @@ void BellmanFord(Graph *graph) {
                     distance[v] = distance[u] + weight;
             }
 
+    #if OMP
+    #pragma omp parallel for schedule(dynamic, 32)
+    #endif
     // Reweight edge weights
     for (int u = 0; u < graph->nnode; u++)
         for (int eid = graph->node[u]; eid < graph->node[u+1]; eid++) {

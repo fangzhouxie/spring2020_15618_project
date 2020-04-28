@@ -278,6 +278,8 @@ def generateInstResultTable(resultList, instResultList, cinstResult):
     outmsg(msg)
     outmsg("+" * 115)
 
+    bf_ref, d_ref = 0., 0.
+
     if cinstResult is not None:
         l, p, bf, d, o, u, e = [cinstResult.get(c, 0.0) for c in instColumns]
         msg = "{0:<8} {1:<12} {2:<13} {3:<14} {4:<10} {5:<10} {6:<8} {7:<8}".format("Ref", l, p, bf, d, o, u, e)

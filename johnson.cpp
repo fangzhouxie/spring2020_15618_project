@@ -72,8 +72,13 @@ Graph *LoadGraph(FILE *graph_file) {
 }
 
 void Johnson(Graph *graph) {
+    START_ACTIVITY(BELLMAN_FORD);
     BellmanFord(graph);
+    FINISH_ACTIVITY(BELLMAN_FORD);
+
+    START_ACTIVITY(DIJKSTRA);
     AllPairsDijkstra(graph);
+    FINISH_ACTIVITY(DIJKSTRA);
 }
 
 int main(int argc, char *argv[]) {
@@ -84,9 +89,10 @@ int main(int argc, char *argv[]) {
     #if OMP
     int thread_count = omp_get_num_procs();
     #endif
+    bool instrument = false;
 
     // parse command line arguments
-    while ((c = getopt(argc, argv, "hg:t:v")) != -1) {
+    while ((c = getopt(argc, argv, "hg:t:vI")) != -1) {
         switch(c) {
             case 'g':
                 graph_file = fopen(optarg, "r");
@@ -106,11 +112,16 @@ int main(int argc, char *argv[]) {
             case 'h':
                 Usage(argv[0]);
                 break;
+            case 'I':
+                instrument = true;
+                break;
             default:
                 printf("Unknown option '%c'\n", c);
                 Usage(argv[0]);
         }
     }
+
+    track_activity(instrument);
 
     if (graph_file == NULL) {
 	    printf("Need graph file\n");
@@ -122,9 +133,13 @@ int main(int argc, char *argv[]) {
     omp_set_num_threads(thread_count);
     #endif
 
+    START_ACTIVITY(LOAD_GRAPH);
     graph = LoadGraph(graph_file);
+    FINISH_ACTIVITY(LOAD_GRAPH);
+
     Johnson(graph);
 
+    START_ACTIVITY(PRINT_GRAPH);
     for (int i = 0; i < graph->nnode; ++i) {
       for (int j = 0; j < graph->nnode; ++j) {
         if (graph->distance[i][j] == IntMax)
@@ -134,17 +149,7 @@ int main(int argc, char *argv[]) {
       }
       std::cout << std::endl;
     }
+    FINISH_ACTIVITY(PRINT_GRAPH);
 
-    // Write result to file
-    // std::ofstream f;
-    // f.open("result.txt");
-    // for (int i = 0; i < graph->nnode; i++) {
-    //     for (int j = 0; j < graph->nnode; j++)
-    //         if (graph->distance[i][j] == IntMax)
-    //             f << "inf\t\t";
-    //         else
-    //             f << graph->distance[i][j] << "\t\t";
-    //     f << "\n";
-    // }
-    // f.close();
+    SHOW_ACTIVITY(stderr, instrument);
 }

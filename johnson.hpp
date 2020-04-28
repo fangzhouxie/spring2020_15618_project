@@ -8,6 +8,9 @@
 #include <stdlib.h>
 #include <getopt.h>
 
+#include "cycletimer.hpp"
+#include "instrument.hpp"
+
 #if OMP
 #include <omp.h>
 #endif

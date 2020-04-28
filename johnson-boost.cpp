@@ -3,39 +3,36 @@
 * https://www.boost.org/doc/libs/1_72_0/libs/graph/example/johnson-eg.cpp
 ***************************************************************************************/
 
-#include <boost/config.hpp>
-#include <fstream>
-#include <iostream>
-#include <vector>
-#include <iomanip>
-#include <boost/property_map/property_map.hpp>
-#include <boost/graph/adjacency_list.hpp>
-#include <boost/graph/graphviz.hpp>
-#include <boost/graph/johnson_all_pairs_shortest.hpp>
-#include <string>
-
-#define MAXLINELEN 1024
+#include "johnson-boost.hpp"
 
 int main(int argc, char *argv[]){
   int c;
   FILE *gfile = NULL;
+  bool instrument = false;
   // parse command line arguments
-  while ((c = getopt(argc, argv, "g:")) != -1) {
+  while ((c = getopt(argc, argv, "g:I")) != -1) {
     switch(c) {
       case 'g':
         gfile = fopen(optarg, "r");
         if (gfile == NULL)
           printf("Couldn't open graph file %s\n", optarg);
         break;
+      case 'I':
+        instrument = true;
+        break;
       default:
       printf("Unknown option '%c'\n", c);
     }
   }
 
+  // track_activity(instrument);
+
   if (gfile == NULL) {
     printf("Need graph file\n");
     return 0;
   }
+
+  // START_ACTIVITY(LOAD_GRAPH);
 
   using namespace boost;
   typedef adjacency_list<vecS, vecS, directedS, no_property,
@@ -101,8 +98,13 @@ int main(int argc, char *argv[]){
     D[i] = &DD[i*V];
   }
 
-  johnson_all_pairs_shortest_paths(g, D, distance_map(&d[0]));
+  // FINISH_ACTIVITY(LOAD_GRAPH);
 
+  // START_ACTIVITY(JOHNSON_BOOST);
+  johnson_all_pairs_shortest_paths(g, D, distance_map(&d[0]));
+  // FINISH_ACTIVITY(JOHNSON_BOOST);
+
+  // START_ACTIVITY(PRINT_GRAPH);
   for (int i = 0; i < V; ++i) {
     for (int j = 0; j < V; ++j) {
       if (D[i][j] == (std::numeric_limits<int>::max)())
@@ -112,6 +114,9 @@ int main(int argc, char *argv[]){
     }
     std::cout << std::endl;
   }
+  // FINISH_ACTIVITY(PRINT_GRAPH);
+
+  // SHOW_ACTIVITY(stderr, instrument);
 
   return 0;
 }

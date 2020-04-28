@@ -13,7 +13,7 @@ BHFILES=johnson-boost.hpp
 
 .PHONY: clean
 
-all: john_seq john_omp john_boost
+all: john_seq john_omp john_cuda john_boost
 
 john_seq: $(CFILES) $(HFILES)
 	$(CXX) $(CXXFLAGS) -o johnson_seq $(CFILES)

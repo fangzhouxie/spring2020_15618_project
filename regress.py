@@ -21,7 +21,7 @@ standardProg = "./johnson_boost"
 # Simulator being tested
 testProg = "./johnson_seq"
 ompTestProg = "./johnson_omp"
-cudaTestProg = "/johnson_cuda"
+cudaTestProg = "./johnson_cuda"
 
 # Directories
 # graph files
@@ -209,7 +209,7 @@ if __name__ == "__main__":
                     help="Clear expected result cache")
     parser.add_argument("-t", "--threadCount", type=int,
                     help="Specify number of OMP threads.\n If > 1, will run johnson-omp.  Else will run johnson-seq")
-    parser.add_argument("-g", "--gpu", type=str,
+    parser.add_argument("-g", "--gpu", action="store_true",
                     help="Run johnson-cuda")
 
     args = parser.parse_args()

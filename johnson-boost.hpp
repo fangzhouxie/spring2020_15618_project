@@ -1,6 +1,3 @@
-#include "cycletimer.hpp"
-#include "instrument.hpp"
-
 #include <boost/config.hpp>
 #include <fstream>
 #include <iostream>

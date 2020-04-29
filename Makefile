@@ -10,6 +10,8 @@ HFILES=johnson.hpp cycletimer.hpp instrument.hpp
 CUDAFILES=johnson.cu
 BCFILES=johnson-boost.cpp
 BHFILES=johnson-boost.hpp
+ICFILES = cycletimer.cpp instrument.cpp
+IHFILES = cycletimer.hpp instrument.hpp
 
 .PHONY: clean
 
@@ -21,8 +23,8 @@ john_seq: $(CFILES) $(HFILES)
 john_omp: $(CFILES) $(HFILES)
 	$(CXX) $(CXXFLAGS) $(OMP) -o johnson_omp $(CFILES)
 
-john_cuda: $(CUDAFILES)
-	$(NVCC) $(NVCCFLAGS) -o johnson_cuda $(CUDAFILES)
+john_cuda: $(CUDAFILES) $(ICFILES) $(IHFILES)
+	$(NVCC) $(NVCCFLAGS) -o johnson_cuda $(CUDAFILES) $(ICFILES)
 
 john_boost: $(BCFILES) $(BHFILES)
 	$(CXX) $(CXXFLAGS) -o johnson_boost $(BCFILES)

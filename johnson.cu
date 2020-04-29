@@ -9,6 +9,9 @@
 #include <cuda_runtime.h>
 #include <driver_functions.h>
 
+#include "cycletimer.hpp"
+#include "instrument.hpp"
+
 #define MaxLineLength 1024
 #define IntMax __INT32_MAX__
 #define cudaCheckError(ans) cudaAssert((ans), __FILE__, __LINE__);
@@ -254,9 +257,7 @@ __host__ void bellman_ford_host(Graph *graph) {
 
 __host__ void dijkstra_host(Graph *graph) {
     int* deviceNewWeights;
-    int* deviceDistance; // is it needed?
-    //int* devicePredecessor; // is it needed?
-    //char* deviceVisited;
+    int* deviceDistance;
 
     int nnode = graph->nnode;
     int nedge = graph->nedge;
@@ -274,6 +275,7 @@ __host__ void dijkstra_host(Graph *graph) {
 }
 
 __host__ void johnson_host(Graph *graph) {
+    START_ACTIVITY(ACTIVITY_OVERHEAD);
     int* deviceNodes;
     int* deviceEdges;
     int* deviceWeights;
@@ -297,12 +299,17 @@ __host__ void johnson_host(Graph *graph) {
     graphParams.weight = deviceWeights;
 
     cudaMemcpyToSymbol(constGraphParams, &graphParams, sizeof(GlobalConstants));
+    FINISH_ACTIVITY(ACTIVITY_OVERHEAD);
 
     // bellman_ford
+    START_ACTIVITY(BELLMAN_FORD);
     bellman_ford_host(graph);
+    FINISH_ACTIVITY(BELLMAN_FORD);
 
     // dijkstra
+    START_ACTIVITY(DIJKSTRA);
     dijkstra_host(graph);
+    FINISH_ACTIVITY(DIJKSTRA);
 }
 
 static void Usage(char *name) {
@@ -344,17 +351,22 @@ int main(int argc, char *argv[]) {
         }
     }
 
+    track_activity(instrument);
+
     if (graph_file == NULL) {
 	    printf("Need graph file\n");
         Usage(argv[0]);
         return 0;
     }
 
+    START_ACTIVITY(LOAD_GRAPH);
     graph = LoadGraph(graph_file);
+    FINISH_ACTIVITY(LOAD_GRAPH);
 
     johnson_host(graph);
 
     // output
+    START_ACTIVITY(PRINT_GRAPH);
     for (int i = 0; i < graph->nnode; ++i) {
       for (int j = 0; j < graph->nnode; ++j) {
         if (graph->distance[i * graph->nnode + j] == IntMax)
@@ -364,4 +376,7 @@ int main(int argc, char *argv[]) {
       }
       std::cout << std::endl;
     }
+    FINISH_ACTIVITY(PRINT_GRAPH);
+
+    SHOW_ACTIVITY(stderr, instrument);
 }

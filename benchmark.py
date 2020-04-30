@@ -349,7 +349,7 @@ if __name__ == "__main__":
     runCount = args.runs if args.runs is not None else runCount
     # Scaling mode: vary the number of threads
     if args.scale:
-        threadCounts = list(range(1, defaultThreadCount+1))
+        threadCounts = list(range(2, defaultThreadCount+1))
         defaultTests = scalingList
         stdProgram = seqProgram # use seq program as baseline when checking for perf scaling
     else:

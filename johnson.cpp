@@ -71,6 +71,20 @@ Graph *LoadGraph(FILE *graph_file) {
     return graph;
 }
 
+void freeGraph(Graph* graph) {
+    for (int nid = 0; nid < graph->nnode; nid++) {
+        free(graph->distance[nid]);
+        free(graph->predecessor[nid]);
+    }
+    free(graph->node);
+    free(graph->edge);
+    free(graph->weight);
+    free(graph->new_weight);
+    free(graph->distance);
+    free(graph->predecessor);
+    free(graph);
+}
+
 void Johnson(Graph *graph) {
     START_ACTIVITY(BELLMAN_FORD);
     BellmanFord(graph);
@@ -152,4 +166,6 @@ int main(int argc, char *argv[]) {
     FINISH_ACTIVITY(PRINT_GRAPH);
 
     SHOW_ACTIVITY(stderr, instrument);
+
+    freeGraph(graph);
 }

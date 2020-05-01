@@ -76,6 +76,10 @@ def regressionCommand(graphFileName, standard = True, threadCount = 1, gpu = Fal
         pass # any additional arg goes here
     elif threadCount > 1:
         cmd += ["-t", str(threadCount)]
+
+    if not standard:
+        cmd += ["-P"]
+
     return cmd
 
 

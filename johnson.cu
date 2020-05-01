@@ -14,6 +14,18 @@
 
 #define MaxLineLength 1024
 #define IntMax __INT32_MAX__
+#define cudaCheckErrors(msg) \
+    do { \
+        cudaError_t __err = cudaGetLastError(); \
+        if (__err != cudaSuccess) { \
+            fprintf(stderr, "Fatal error: %s (%s at %s:%d)\n", \
+                msg, cudaGetErrorString(__err), \
+                __FILE__, __LINE__); \
+            fprintf(stderr, "*** FAILED - ABORTING\n"); \
+            exit(1); \
+        } \
+    } while (0)
+
 #define cudaCheckError(ans) cudaAssert((ans), __FILE__, __LINE__);
 inline void cudaAssert(cudaError_t code, const char *file, int line, bool abort=true) {
     if (code != cudaSuccess) {
@@ -186,7 +198,7 @@ __device__ __inline__ int FindIndexOfUnvisitedNodeWithMinDistance(int nnode, int
     return min_nid;
 }
 
-__global__ void dijkstra_kernel(int* new_weight, int* distance) {
+__global__ void dijkstra_kernel(int* new_weight, int* distance, int* tmp_distance, int* predecessor, char* visited) {
     int src_nid = blockIdx.x * blockDim.x + threadIdx.x;
     int nnode = constGraphParams.nnode;
     if (src_nid >= nnode) return;
@@ -195,29 +207,30 @@ __global__ void dijkstra_kernel(int* new_weight, int* distance) {
     int *edge = constGraphParams.edge;
 
     int *distance_local = &distance[src_nid * nnode];
-    int *predecessor_local = (int *)malloc(nnode * sizeof(int));
-    int *tmp_distance = (int *)malloc(nnode * sizeof(int));
-    char *visited_local = (char *)malloc(nnode * sizeof(char));
+    // malloc would fail for large graphs
+    int *predecessor_local = &predecessor[src_nid * nnode];
+    int *tmp_distance_local = &tmp_distance[src_nid * nnode];
+    char *visited_local = &visited[src_nid * nnode];
 
     for (int nid = 0; nid < nnode; nid++) {
         distance_local[nid] = -1;
         predecessor_local[nid] = -1;
-        tmp_distance[nid] = IntMax;
+        tmp_distance_local[nid] = IntMax;
         visited_local[nid] = 0;
     }
-    tmp_distance[src_nid] = 0;
+    tmp_distance_local[src_nid] = 0;
     predecessor_local[src_nid] = src_nid;
 
     for (int iter = 0; iter < nnode; iter++) {
-        int min_nid = FindIndexOfUnvisitedNodeWithMinDistance(nnode, tmp_distance, visited_local);
+        int min_nid = FindIndexOfUnvisitedNodeWithMinDistance(nnode, tmp_distance_local, visited_local);
         // No reachable unvisted nodes left
-        if (tmp_distance[min_nid] == IntMax) break;
+        if (tmp_distance_local[min_nid] == IntMax) break;
 
         visited_local[min_nid] = 1;
         for (int eid = node[min_nid]; eid < node[min_nid+1]; eid++) {
             int neighbor_nid = edge[eid];
-            if (tmp_distance[neighbor_nid] > new_weight[eid] + tmp_distance[min_nid]) {
-                tmp_distance[neighbor_nid] = new_weight[eid] + tmp_distance[min_nid];
+            if (tmp_distance_local[neighbor_nid] > new_weight[eid] + tmp_distance_local[min_nid]) {
+                tmp_distance_local[neighbor_nid] = new_weight[eid] + tmp_distance_local[min_nid];
                 predecessor_local[neighbor_nid] = min_nid;
             }
         }
@@ -226,9 +239,6 @@ __global__ void dijkstra_kernel(int* new_weight, int* distance) {
     for (int nid = 0; nid < nnode; nid++)
         CalculateOriginalDistance(src_nid, nid, distance_local, predecessor_local);
 
-    free(tmp_distance);
-    free(visited_local);
-    free(predecessor_local);
 }
 
 __global__ void bellman_ford_kernel(int* src_nodes, int* dst_nodes, int* distance) {
@@ -282,18 +292,24 @@ __host__ void bellman_ford_host(Graph *graph) {
     cudaMalloc(&deviceSrcNodes, graph->nedge * sizeof(int));
     cudaMalloc(&deviceDstNodes, graph->nedge * sizeof(int));
     cudaMalloc(&deviceDistance, graph->nnode * sizeof(int));
+    // cudaCheckErrors("bellman_ford cudaMalloc");
 
     cudaMemcpy(deviceSrcNodes, srcNodes, graph->nedge * sizeof(int), cudaMemcpyHostToDevice);
     cudaMemcpy(deviceDstNodes, dstNodes, graph->nedge * sizeof(int), cudaMemcpyHostToDevice);
     cudaMemcpy(deviceDistance, distance, graph->nnode * sizeof(int), cudaMemcpyHostToDevice);
+    // cudaCheckErrors("bellman_ford cudaMemcpyHostToDevice");
 
     for (int iter = 0; iter < graph->nnode; iter++) {
         bellman_ford_kernel<<<blocks, threadsPerBlock>>>(deviceSrcNodes, deviceDstNodes, deviceDistance);
         cudaDeviceSynchronize(); // sync before next iteration
     }
 
+    // cudaCheckErrors("bellman_ford_kernel");
+
     // TODO: should this memcpy go inside the loop?
     cudaMemcpy(distance, deviceDistance, graph->nnode * sizeof(int), cudaMemcpyDeviceToHost);
+    // cudaCheckErrors("bellman_ford cudaMemcpyDeviceToHost");
+
     cudaFree(deviceSrcNodes);
     cudaFree(deviceDstNodes);
     cudaFree(deviceDistance);
@@ -316,23 +332,37 @@ __host__ void bellman_ford_host(Graph *graph) {
 __host__ void dijkstra_host(Graph *graph) {
     int* deviceNewWeights;
     int* deviceDistance;
+    int* devicePredecessor;
+    char* deviceVisited;
+    int* deviceTmpDistance;
 
     int nnode = graph->nnode;
     int nedge = graph->nedge;
 
     cudaMalloc(&deviceNewWeights, nedge * sizeof(int));
     cudaMalloc(&deviceDistance, nnode * nnode * sizeof(int));
+    cudaMalloc(&deviceTmpDistance, nnode * nnode * sizeof(int));
+    cudaMalloc(&devicePredecessor, nnode * nnode * sizeof(int));
+    cudaMalloc(&deviceVisited, nnode * nnode * sizeof(char));
+    // cudaCheckErrors("dijkstra cudaMalloc");
 
     cudaMemcpy(deviceNewWeights, graph->new_weight, sizeof(int) * nedge, cudaMemcpyHostToDevice);
+    // cudaCheckErrors("dijkstra cudaMemcpyHostToDevice");
 
-    int threadsPerBlock = 32;
+    int threadsPerBlock = 512;
     int blocks = (nnode + threadsPerBlock - 1) / threadsPerBlock;
-    dijkstra_kernel<<<blocks, threadsPerBlock>>>(deviceNewWeights, deviceDistance);
+    dijkstra_kernel<<<blocks, threadsPerBlock>>>(deviceNewWeights, deviceDistance, deviceTmpDistance, devicePredecessor, deviceVisited);
+    cudaDeviceSynchronize();
+    // cudaCheckErrors("dijkstra_kernel");
 
     cudaMemcpy(graph->distance, deviceDistance, nnode * nnode * sizeof(int), cudaMemcpyDeviceToHost);
+    // cudaCheckErrors("dijkstra cudaMemcpyDeviceToHost");
 
     cudaFree(deviceNewWeights);
     cudaFree(deviceDistance);
+    cudaFree(deviceTmpDistance);
+    cudaFree(devicePredecessor);
+    cudaFree(deviceVisited);
 }
 
 __host__ void johnson_host(Graph *graph) {
@@ -347,10 +377,12 @@ __host__ void johnson_host(Graph *graph) {
     cudaMalloc(&deviceNodes, (nnode + 1) * sizeof(int));
     cudaMalloc(&deviceEdges, nedge * sizeof(int));
     cudaMalloc(&deviceWeights, nedge * sizeof(int));
+    // cudaCheckErrors("johnson cudaMalloc");
 
     cudaMemcpy(deviceNodes, graph->node, sizeof(int) * (nnode + 1), cudaMemcpyHostToDevice);
     cudaMemcpy(deviceEdges, graph->edge, sizeof(int) * nedge, cudaMemcpyHostToDevice);
     cudaMemcpy(deviceWeights, graph->weight, sizeof(int) * nedge, cudaMemcpyHostToDevice);
+    // cudaCheckErrors("johnson cudaMemcpyHostToDevice");
 
     GlobalConstants graphParams;
     graphParams.nnode = nnode;
@@ -360,6 +392,8 @@ __host__ void johnson_host(Graph *graph) {
     graphParams.weight = deviceWeights;
 
     cudaMemcpyToSymbol(constGraphParams, &graphParams, sizeof(GlobalConstants));
+    // cudaCheckErrors("johnson cudaMemcpyToSymbol");
+
     FINISH_ACTIVITY(ACTIVITY_OVERHEAD);
 
     // bellman_ford
@@ -393,9 +427,10 @@ int main(int argc, char *argv[]) {
     display = 0;
     bool instrument = false;
     bool showMem = false;
+    bool doPrint = false;
 
     // parse command line arguments
-    while ((c = getopt(argc, argv, "hg:vIM")) != -1) {
+    while ((c = getopt(argc, argv, "hg:vIMP")) != -1) {
         switch(c) {
             case 'g':
                 graph_file = fopen(optarg, "r");
@@ -413,6 +448,9 @@ int main(int argc, char *argv[]) {
                 break;
             case 'M':
                 showMem = true;
+                break;
+            case 'P':
+                doPrint = true;
                 break;
             default:
                 printf("Unknown option '%c'\n", c);
@@ -451,18 +489,20 @@ int main(int argc, char *argv[]) {
 
     johnson_host(graph);
 
-    // output
-    START_ACTIVITY(PRINT_GRAPH);
-    for (int i = 0; i < graph->nnode; ++i) {
-      for (int j = 0; j < graph->nnode; ++j) {
-        if (graph->distance[i * graph->nnode + j] == IntMax)
-            std::cout << std::setw(5) << "inf";
-        else
-            std::cout << std::setw(5) << graph->distance[i * graph->nnode + j];
-      }
-      std::cout << std::endl;
+    if (doPrint) {
+        // output
+        START_ACTIVITY(PRINT_GRAPH);
+        for (int i = 0; i < graph->nnode; ++i) {
+          for (int j = 0; j < graph->nnode; ++j) {
+            if (graph->distance[i * graph->nnode + j] == IntMax)
+                std::cout << std::setw(5) << "inf";
+            else
+                std::cout << std::setw(5) << graph->distance[i * graph->nnode + j];
+          }
+          std::cout << std::endl;
+        }
+        FINISH_ACTIVITY(PRINT_GRAPH);
     }
-    FINISH_ACTIVITY(PRINT_GRAPH);
 
     SHOW_ACTIVITY(stderr, instrument);
 

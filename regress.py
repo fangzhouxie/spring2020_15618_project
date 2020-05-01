@@ -38,7 +38,7 @@ mismatchLimit = 5
 regressionList = [
     (64,   200,    1),
     (512,  4000,   2),
-    (1024, 10000,  3),
+    #(1024, 10000,  3),
 ]
 
 def regressionName(params, standard = True, short = False, graphFileName = None):
@@ -86,7 +86,7 @@ def runImpl(params, standard = True, threadCount = 1, gpu = False, graphFileName
 
         if not os.path.exists(graphFileName):
             # generate graph
-            sys.stderr.write("Generating graph: %s" % str(graphFileName))
+            sys.stderr.write("Generating graph: %s \n" % str(graphFileName))
             generate_graph(nnode, nedge, seed)
 
         pname = cacheDir + "/" + regressionName(params, standard)

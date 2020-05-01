@@ -28,6 +28,7 @@ graphDirectory = "./graphs"
 outFile = None
 
 doCheck = True
+doRegress = False
 saveDirectory = "./check"
 
 testFileName = ""
@@ -109,7 +110,7 @@ def doRun(cmdList, progFileName):
             return None, {}
     tstart = time.perf_counter()
     try:
-        outmsg("Running '%s > %s'" % (cmdLine, progFileName))
+        outmsg("Running '%s > %s'" % (cmdLine, progFileName) if progFileName is not None else "Running '%s'" % (cmdLine))
         progProcess = subprocess.Popen(cmdList, stdout = progFile, stderr = subprocess.PIPE)
         progProcess.wait()
         if progFile != subprocess.PIPE:
@@ -162,14 +163,20 @@ def getGraph(nnode, nedge, seed):
         generate_graph(nnode, nedge, seed)
     return gfname
 
-def runBenchmark(useRef, testId, threadCount):
+def getProgram(useRef, threadCount, gpu):
+    if useRef: return seqProgram #stdProgram
+    if gpu: return cudaProgram
+    if threadCount > 1: return ompProgram
+    return seqProgram
+
+def runBenchmark(useRef, testId, threadCount, gpu=False):
     global referenceFileName, testFileName
     nnode, nedge, seed = benchmarkDict[testId]
     gfname = getGraph(nnode, nedge, seed)
     results = [nnode, nedge, seed, str(threadCount)]
-    prog = stdProgram if useRef else seqProgram if threadCount == 1 else ompProgram
+    prog = getProgram(useRef, threadCount, gpu)
     clist = ["-g", gfname]
-    if prog not in [stdProgram, seqProgram]:
+    if prog == ompProgram:
         clist += ["-t", str(threadCount)]
     if doInstrument:
         clist += ["-I"]
@@ -177,7 +184,7 @@ def runBenchmark(useRef, testId, threadCount):
     if not useRef:
         name = testName(testId, threadCount)
         outmsg("+++++++++++++++++ Benchmark %s +++++++++++++++++" % name)
-    if doCheck:
+    if doRegress: #doCheck:
         if not os.path.exists(saveDirectory):
             try:
                 os.mkdir(saveDirectory)
@@ -189,6 +196,7 @@ def runBenchmark(useRef, testId, threadCount):
             referenceFileName = fileName
         else:
             testFileName = fileName
+        clist += ["P"] # print output graph
 
     cmd = [prog] + clist
     cmdLine = " ".join(cmd)
@@ -200,7 +208,7 @@ def runBenchmark(useRef, testId, threadCount):
         return results, instDict
 
 def formatTitle():
-    ls = ["# Node", "# Edge", "Seed", "Threads", "Test (ms)"]
+    ls = ["# Node", "# Edge", "Seed", "GPU" if gpu else "Threads", "Test (ms)"]
     if doCheck:
          ls += ["Base (ms)", "Speedup"]
     return " ".join("{0:<10}".format(t) for t in ls)
@@ -210,7 +218,7 @@ def printTitle():
     outmsg(formatTitle())
     outmsg("+" * 80)
 
-def sweep(testList, threadCounts):
+def sweep(testList, threadCounts, gpu=False):
     tcount = 0
     rcount = 0
     sum = 0.0
@@ -222,15 +230,16 @@ def sweep(testList, threadCounts):
     instResult = None
     cinstResult = None
     for t in testList:
-        if len(threadCounts) > 1 and doCheck:
+        if (len(threadCounts) > 1 or gpu) and doCheck:
             cresults, cinstResult = runBenchmark(True, t, 1)
+
         for tc in threadCounts:
             tstart = time.perf_counter()
             ok = True
-            results, instResult = runBenchmark(False, t, tc)
+            results, instResult = runBenchmark(False, t, tc, gpu)
             if results is not None and doCheck and len(threadCounts) <= 1:
-                cresults, _ = runBenchmark(True, t, tc)
-                if referenceFileName != "" and testFileName != "":
+                cresults, _ = runBenchmark(True, t, tc, gpu)
+                if doRegress and referenceFileName != "" and testFileName != "":
                     ok = checkFiles(referenceFileName, testFileName)
             if not ok:
                 outmsg("TEST FAILED")
@@ -245,7 +254,8 @@ def sweep(testList, threadCounts):
                 instResultList.append(instResult)
             secs = time.perf_counter() - tstart
             print("Test time for %d threads = %.2f secs." % (tc, secs))
-        if len(threadCounts) > 1:
+
+        if len(threadCounts) > 1 or gpu:
             printTitle() # one table per test
             for result in resultList:
                 outmsg(" ".join("{0:<10}".format(r) for r in result))
@@ -256,7 +266,7 @@ def sweep(testList, threadCounts):
             resultList = []
             instResultList = []
 
-    if len(threadCounts) == 1:
+    if len(threadCounts) == 1 and not gpu:
         printTitle() # one table in total
         for result in resultList:
             outmsg(" ".join("{0:<10}".format(r) for r in result))
@@ -267,14 +277,14 @@ def sweep(testList, threadCounts):
 
 def generateInstResultTable(resultList, instResultList, cinstResult):
     bf, dijkstra = None, None
-    cols = ["Thread", "load_graph", "print_graph", "bellman_ford", "dijkstra", "overhead", "unknown", "elapsed", "BF Speedup", "D Speedup"]
-    widths = {"Thread": 8, "load_graph": 12, "print_graph": 13, "bellman_ford": 14, "dijkstra": 10, "overhead": 10, "unknown": 8, "elapsed": 8, "BF Speedup": 12, "D Speedup": 12}
+    # cols = ["Thread", "load_graph", "bellman_ford", "dijkstra", "overhead", "unknown", "elapsed", "BF Speedup", "D Speedup"]
+    # widths = {"Thread": 8, "load_graph": 12, "bellman_ford": 14, "dijkstra": 10, "overhead": 10, "unknown": 8, "elapsed": 8, "BF Speedup": 12, "D Speedup": 12}
 
     outmsg("+" * 115)
     if len(resultList) > 0:
         nnode, nedge, seed = resultList[0][:3]
         outmsg(" " * 35 + "{} Nodes, {} Edges, Seed {}".format(nnode, nedge, seed))
-    msg = "{0:<8} {1:<12} {2:<13} {3:<14} {4:<10} {5:<10} {6:<8} {7:<8} {8:<12} {9:<12}".format("Thread", "load_graph", "print_graph", "bellman_ford", "dijkstra", "overhead", "unknown", "elapsed", "BF Speedup", "D Speedup")
+    msg = "{0:<8} {1:<12} {2:<14} {3:<10} {4:<10} {5:<8} {6:<8} {7:<12} {8:<12}".format("GPU" if gpu else "Thread", "load_graph", "bellman_ford", "dijkstra", "overhead", "unknown", "elapsed", "BF Speedup", "D Speedup")
     outmsg(msg)
     outmsg("+" * 115)
 
@@ -282,7 +292,7 @@ def generateInstResultTable(resultList, instResultList, cinstResult):
 
     if cinstResult is not None:
         l, p, bf, d, o, u, e = [cinstResult.get(c, 0.0) for c in instColumns]
-        msg = "{0:<8} {1:<12} {2:<13} {3:<14} {4:<10} {5:<10} {6:<8} {7:<8}".format("Ref", l, p, bf, d, o, u, e)
+        msg = "{0:<8} {1:<12} {2:<14} {3:<10} {4:<10} {5:<8} {6:<8}".format("Ref", l, bf, d, o, u, e)
         outmsg(msg)
         bf_ref, d_ref = float(bf), float(d)
     for result, instResult in zip(resultList, instResultList):
@@ -292,7 +302,7 @@ def generateInstResultTable(resultList, instResultList, cinstResult):
             bf_speedup = "%.2fx" % (bf_ref/float(bf))
         if d and d_ref:
             dijkstra_speedup = "%.2fx" % (d_ref/float(d))
-        msg = "{0:<8} {1:<12} {2:<13} {3:<14} {4:<10} {5:<10} {6:<8} {7:<8} {8:<12} {9:<12}".format(result[3], l, p, bf, d, o, u, e, bf_speedup, dijkstra_speedup)
+        msg = "{0:<8} {1:<12} {2:<14} {3:<10} {4:<10} {5:<8} {6:<8} {7:<12} {8:<12}".format("x" if gpu else result[3], l, bf, d, o, u, e, bf_speedup, dijkstra_speedup)
         outmsg(msg)
 
 def generateFileName(template):
@@ -316,23 +326,22 @@ def run():
 
     testList = list(defaultTests)
 
-    if gpu:
-        raise NotImplementedException();
-    else:
-        gstart = time.perf_counter()
-        sweep(testList, threadCounts)
-        if len(threadCounts) > 1:
-            secs = time.perf_counter() - gstart
-            print("Overall test time = %.2f secs." % (secs))
+    gstart = time.perf_counter()
+    sweep(testList, threadCounts, gpu)
+    if len(threadCounts) > 1:
+        secs = time.perf_counter() - gstart
+        print("Overall test time = %.2f secs." % (secs))
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
     parser.add_argument("-Q", "--quick", action="store_true",
-                    help="Quick mode: do not compare with reference solution")
+                    help="Quick mode: do not compare performance with reference solution")
+    parser.add_argument("-V", "--verify", action="store_true",
+                    help="Verify result against reference solution")
     parser.add_argument("-I", "--instrument", action="store_true",
                     help="Instrument activities")
     parser.add_argument("-S", "--scale", action="store_true",
-                        help="Instrument activities")
+                    help="Instrument activities")
     parser.add_argument("-r", "--runs", type=int,
                     help="Specify number of times each benchmark is run")
     parser.add_argument("-t", "--threadCount", type=int,
@@ -345,6 +354,7 @@ if __name__ == "__main__":
     args = parser.parse_args()
 
     doCheck = not args.quick if args.quick is not None else doCheck
+    doRegress = args.verify if doCheck else False
     doInstrument = args.instrument if args.instrument is not None else doInstrument
     runCount = args.runs if args.runs is not None else runCount
     # Scaling mode: vary the number of threads
@@ -354,7 +364,9 @@ if __name__ == "__main__":
         stdProgram = seqProgram # use seq program as baseline when checking for perf scaling
     else:
         threadCounts = [args.threadCount] if args.threadCount is not None else threadCounts
-    gpu = args.gpu if args.gpu is not None else gpu
+    if args.gpu:
+        gpu = True
+        threadCounts = [1]
     outFile = args.outfile if args.outfile is not None else outFile
 
     run()

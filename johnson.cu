@@ -103,6 +103,16 @@ Graph *LoadGraph(FILE *graph_file) {
     return graph;
 }
 
+void freeGraph(Graph* graph) {
+    free(graph->node);
+    free(graph->edge);
+    free(graph->weight);
+    free(graph->new_weight);
+    free(graph->distance);
+    free(graph->predecessor);
+    free(graph);
+}
+
 ///////////////////////////////////////////////////////////////////////////////
 // Start of kernels
 ///////////////////////////////////////////////////////////////////////////////
@@ -221,11 +231,27 @@ __global__ void dijkstra_kernel(int* new_weight, int* distance) {
     free(predecessor_local);
 }
 
+__global__ void bellman_ford_kernel(int* src_nodes, int* dst_nodes, int* distance) {
+    int eid = blockIdx.x * blockDim.x + threadIdx.x;
+    int nedge = constGraphParams.nedge;
+    if (eid >= nedge) return;
+
+    int u = src_nodes[eid];
+    int v = dst_nodes[eid];
+
+    int* weight = constGraphParams.weight;
+
+    int new_distance = distance[u] + weight[eid];
+
+    // do we need atomicCAS?
+    //if (distance[v] > new_distance) distance[v] = new_distance;
+    atomicMin(&distance[v], new_distance);
+}
+
 ///////////////////////////////////////////////////////////////////////////////
 /// End of kernels
 ///////////////////////////////////////////////////////////////////////////////
 
-//TODO: bellman ford is sequential for now
 __host__ void bellman_ford_host(Graph *graph) {
     int distance[graph->nnode];
 
@@ -233,15 +259,47 @@ __host__ void bellman_ford_host(Graph *graph) {
     for (int nid = 0; nid < graph->nnode; nid++)
         distance[nid] = 0;
 
+    /**************************************************************/
+    int* srcNodes = (int *)malloc(graph->nedge * sizeof(int));
+    int* dstNodes = (int *)malloc(graph->nedge * sizeof(int));
+
+    for (int u=0; u < graph->nnode; u++) {
+        for (int eid = graph->node[u]; eid < graph->node[u+1]; eid++) {
+            int v = graph->edge[eid];
+            srcNodes[eid] = u;
+            dstNodes[eid] = v;
+        }
+    }
+
     // Iterate through the graph V - 1 times
-    for (int iter = 0; iter < graph->nnode; iter++)
-        for (int u = 0; u < graph->nnode; u++)
-            for (int eid = graph->node[u]; eid < graph->node[u+1]; eid++) {
-                int v = graph->edge[eid];
-                int weight = graph->weight[eid];
-                if (distance[v] > distance[u] + weight)
-                    distance[v] = distance[u] + weight;
-            }
+    int threadsPerBlock = 32;
+    int blocks = (graph->nedge + threadsPerBlock - 1) / threadsPerBlock;
+
+    int* deviceSrcNodes;
+    int* deviceDstNodes;
+    int* deviceDistance;
+
+    cudaMalloc(&deviceSrcNodes, graph->nedge * sizeof(int));
+    cudaMalloc(&deviceDstNodes, graph->nedge * sizeof(int));
+    cudaMalloc(&deviceDistance, graph->nnode * sizeof(int));
+
+    cudaMemcpy(deviceSrcNodes, srcNodes, graph->nedge * sizeof(int), cudaMemcpyHostToDevice);
+    cudaMemcpy(deviceDstNodes, dstNodes, graph->nedge * sizeof(int), cudaMemcpyHostToDevice);
+    cudaMemcpy(deviceDistance, distance, graph->nnode * sizeof(int), cudaMemcpyHostToDevice);
+
+    for (int iter = 0; iter < graph->nnode; iter++) {
+        bellman_ford_kernel<<<blocks, threadsPerBlock>>>(deviceSrcNodes, deviceDstNodes, deviceDistance);
+        cudaDeviceSynchronize(); // sync before next iteration
+    }
+
+    // TODO: should this memcpy go inside the loop?
+    cudaMemcpy(distance, deviceDistance, graph->nnode * sizeof(int), cudaMemcpyDeviceToHost);
+    cudaFree(deviceSrcNodes);
+    cudaFree(deviceDstNodes);
+    cudaFree(deviceDistance);
+    free(srcNodes);
+    free(dstNodes);
+    /**************************************************************/
 
     // Reweight edge weights
     for (int u = 0; u < graph->nnode; u++)
@@ -272,6 +330,9 @@ __host__ void dijkstra_host(Graph *graph) {
     dijkstra_kernel<<<blocks, threadsPerBlock>>>(deviceNewWeights, deviceDistance);
 
     cudaMemcpy(graph->distance, deviceDistance, nnode * nnode * sizeof(int), cudaMemcpyDeviceToHost);
+
+    cudaFree(deviceNewWeights);
+    cudaFree(deviceDistance);
 }
 
 __host__ void johnson_host(Graph *graph) {
@@ -287,7 +348,7 @@ __host__ void johnson_host(Graph *graph) {
     cudaMalloc(&deviceEdges, nedge * sizeof(int));
     cudaMalloc(&deviceWeights, nedge * sizeof(int));
 
-    cudaMemcpy(deviceNodes, graph->node, sizeof(int) * nnode, cudaMemcpyHostToDevice);
+    cudaMemcpy(deviceNodes, graph->node, sizeof(int) * (nnode + 1), cudaMemcpyHostToDevice);
     cudaMemcpy(deviceEdges, graph->edge, sizeof(int) * nedge, cudaMemcpyHostToDevice);
     cudaMemcpy(deviceWeights, graph->weight, sizeof(int) * nedge, cudaMemcpyHostToDevice);
 
@@ -310,6 +371,10 @@ __host__ void johnson_host(Graph *graph) {
     START_ACTIVITY(DIJKSTRA);
     dijkstra_host(graph);
     FINISH_ACTIVITY(DIJKSTRA);
+
+    cudaFree(deviceNodes);
+    cudaFree(deviceEdges);
+    cudaFree(deviceWeights);
 }
 
 static void Usage(char *name) {
@@ -327,9 +392,10 @@ int main(int argc, char *argv[]) {
     Graph *graph;
     display = 0;
     bool instrument = false;
+    bool showMem = false;
 
     // parse command line arguments
-    while ((c = getopt(argc, argv, "hg:vI")) != -1) {
+    while ((c = getopt(argc, argv, "hg:vIM")) != -1) {
         switch(c) {
             case 'g':
                 graph_file = fopen(optarg, "r");
@@ -345,16 +411,36 @@ int main(int argc, char *argv[]) {
             case 'I':
                 instrument = true;
                 break;
+            case 'M':
+                showMem = true;
+                break;
             default:
                 printf("Unknown option '%c'\n", c);
                 Usage(argv[0]);
         }
     }
 
+    if (showMem) {
+        int deviceCount;
+        cudaDeviceProp deviceProp;
+        cudaGetDeviceCount(&deviceCount);
+        for (int d = 0; d < deviceCount; ++d) {
+            cudaGetDeviceProperties(&deviceProp, d);
+            std::cout
+                << "***Device " << d << "***\n"
+                << "Name: " << deviceProp.name << "\n"
+        	      << "Total Global Memory (kB): " << deviceProp.totalGlobalMem / 1024 << "\n"
+                << "Shared Memory per Block: " << deviceProp.sharedMemPerBlock << "\n"
+                << "Total Constant Memory (B): " << deviceProp.totalConstMem << "\n"
+                << "L2 Cache (B): " << deviceProp.l2CacheSize << "\n";
+        }
+        return 0;
+    }
+
     track_activity(instrument);
 
     if (graph_file == NULL) {
-	    printf("Need graph file\n");
+	      printf("Need graph file\n");
         Usage(argv[0]);
         return 0;
     }
@@ -379,4 +465,6 @@ int main(int argc, char *argv[]) {
     FINISH_ACTIVITY(PRINT_GRAPH);
 
     SHOW_ACTIVITY(stderr, instrument);
+
+    freeGraph(graph);
 }

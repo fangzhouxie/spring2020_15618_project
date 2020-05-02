@@ -421,6 +421,9 @@ static void Usage(char *name) {
 }
 
 int main(int argc, char *argv[]) {
+    // Initialize cuda kernel mode driver
+    cudaFree(0);
+
     int c;
     FILE *graph_file = NULL;
     Graph *graph;

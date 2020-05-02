@@ -1,5 +1,5 @@
 CXX=g++
-CXXFLAGS=-O3 -m64
+CXXFLAGS=-O3 -m64 -Wall
 OMP=-fopenmp -DOMP
 NVCC=nvcc
 NVCCFLAGS=-O3 -m64 --gpu-architecture compute_61

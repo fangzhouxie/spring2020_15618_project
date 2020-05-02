@@ -241,21 +241,36 @@ __global__ void dijkstra_kernel(int* new_weight, int* distance, int* tmp_distanc
 
 }
 
-__global__ void bellman_ford_kernel(int* src_nodes, int* dst_nodes, int* distance) {
+__global__ void reweight_kernel(int* src_nodes, int* dst_nodes, int* distance, int* weight, int* new_weight) {
     int eid = blockIdx.x * blockDim.x + threadIdx.x;
     int nedge = constGraphParams.nedge;
     if (eid >= nedge) return;
+
+    new_weight[eid] = weight[eid] + distance[src_nodes[eid]] - distance[dst_nodes[eid]];
+    if (new_weight[eid] < 0) {
+        printf("Graph contains negative weight cycle\n");
+    }
+}
+
+__global__ void bellman_ford_kernel(int* src_nodes, int* dst_nodes, int* distance) {
+    int eid = blockIdx.x * blockDim.x + threadIdx.x;
+    int niter = constGraphParams.nnode;
+    int nedge = constGraphParams.nedge;
 
     int u = src_nodes[eid];
     int v = dst_nodes[eid];
 
     int* weight = constGraphParams.weight;
 
-    int new_distance = distance[u] + weight[eid];
-
-    // do we need atomicCAS?
-    //if (distance[v] > new_distance) distance[v] = new_distance;
-    atomicMin(&distance[v], new_distance);
+    for (int iter = 0; iter < niter; iter++) {
+        if (eid < nedge) {
+            int new_distance = distance[u] + weight[eid];
+            // do we need atomicCAS?
+            //if (distance[v] > new_distance) distance[v] = new_distance;
+            atomicMin(&distance[v], new_distance);
+        }
+        __syncthreads();
+    }
 }
 
 ///////////////////////////////////////////////////////////////////////////////
@@ -263,13 +278,6 @@ __global__ void bellman_ford_kernel(int* src_nodes, int* dst_nodes, int* distanc
 ///////////////////////////////////////////////////////////////////////////////
 
 __host__ void bellman_ford_host(Graph *graph) {
-    int distance[graph->nnode];
-
-    // Initialize distances from new source node to all nodes
-    for (int nid = 0; nid < graph->nnode; nid++)
-        distance[nid] = 0;
-
-    /**************************************************************/
     int* srcNodes = (int *)malloc(graph->nedge * sizeof(int));
     int* dstNodes = (int *)malloc(graph->nedge * sizeof(int));
 
@@ -288,45 +296,37 @@ __host__ void bellman_ford_host(Graph *graph) {
     int* deviceSrcNodes;
     int* deviceDstNodes;
     int* deviceDistance;
+    int* deviceWeight;
+    int* deviceNewWeight;
 
     cudaMalloc(&deviceSrcNodes, graph->nedge * sizeof(int));
     cudaMalloc(&deviceDstNodes, graph->nedge * sizeof(int));
     cudaMalloc(&deviceDistance, graph->nnode * sizeof(int));
+    cudaMalloc(&deviceWeight, graph->nedge * sizeof(int));
+    cudaMalloc(&deviceNewWeight, graph->nedge * sizeof(int));
     // cudaCheckErrors("bellman_ford cudaMalloc");
 
     cudaMemcpy(deviceSrcNodes, srcNodes, graph->nedge * sizeof(int), cudaMemcpyHostToDevice);
     cudaMemcpy(deviceDstNodes, dstNodes, graph->nedge * sizeof(int), cudaMemcpyHostToDevice);
-    cudaMemcpy(deviceDistance, distance, graph->nnode * sizeof(int), cudaMemcpyHostToDevice);
+    cudaMemcpy(deviceWeight, graph->weight, graph->nedge * sizeof(int), cudaMemcpyHostToDevice);
     // cudaCheckErrors("bellman_ford cudaMemcpyHostToDevice");
 
-    for (int iter = 0; iter < graph->nnode; iter++) {
-        bellman_ford_kernel<<<blocks, threadsPerBlock>>>(deviceSrcNodes, deviceDstNodes, deviceDistance);
-        cudaDeviceSynchronize(); // sync before next iteration
-    }
+    bellman_ford_kernel<<<blocks, threadsPerBlock>>>(deviceSrcNodes, deviceDstNodes, deviceDistance);
+    cudaDeviceSynchronize();
 
     // cudaCheckErrors("bellman_ford_kernel");
 
-    // TODO: should this memcpy go inside the loop?
-    cudaMemcpy(distance, deviceDistance, graph->nnode * sizeof(int), cudaMemcpyDeviceToHost);
-    // cudaCheckErrors("bellman_ford cudaMemcpyDeviceToHost");
+    // Reweight edge weights
+    reweight_kernel<<<blocks, threadsPerBlock>>>(deviceSrcNodes, deviceDstNodes, deviceDistance, deviceWeight, deviceNewWeight);
+    cudaMemcpy(graph->new_weight, deviceNewWeight, graph->nedge * sizeof(int), cudaMemcpyDeviceToHost);
 
     cudaFree(deviceSrcNodes);
     cudaFree(deviceDstNodes);
     cudaFree(deviceDistance);
+    cudaFree(deviceWeight);
+    cudaFree(deviceNewWeight);
     free(srcNodes);
     free(dstNodes);
-    /**************************************************************/
-
-    // Reweight edge weights
-    for (int u = 0; u < graph->nnode; u++)
-        for (int eid = graph->node[u]; eid < graph->node[u+1]; eid++) {
-            int v = graph->edge[eid];
-            graph->new_weight[eid] = graph->weight[eid] + distance[u] - distance[v];
-            if (graph->new_weight[eid] < 0) {
-                printf("Graph contains negative weight cycle\n");
-                exit(0);
-            }
-        }
 }
 
 __host__ void dijkstra_host(Graph *graph) {

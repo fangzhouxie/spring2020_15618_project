@@ -15,18 +15,18 @@ IHFILES = cycletimer.hpp instrument.hpp
 
 .PHONY: clean
 
-all: john_seq john_omp john_cuda john_boost
+all: johnson_seq johnson_omp johnson_cuda johnson_boost
 
-john_seq: $(CFILES) $(HFILES)
+johnson_seq: $(CFILES) $(HFILES)
 	$(CXX) $(CXXFLAGS) -o johnson_seq $(CFILES)
 
-john_omp: $(CFILES) $(HFILES)
+johnson_omp: $(CFILES) $(HFILES)
 	$(CXX) $(CXXFLAGS) $(OMP) -o johnson_omp $(CFILES)
 
-john_cuda: $(CUDAFILES) $(ICFILES) $(IHFILES)
+johnson_cuda: $(CUDAFILES) $(ICFILES) $(IHFILES)
 	$(NVCC) $(NVCCFLAGS) -o johnson_cuda $(CUDAFILES) $(ICFILES)
 
-john_boost: $(BCFILES) $(BHFILES)
+johnson_boost: $(BCFILES) $(BHFILES)
 	$(CXX) $(CXXFLAGS) -o johnson_boost $(BCFILES)
 
 clean:

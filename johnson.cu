@@ -258,8 +258,11 @@ __global__ void bellman_ford_kernel(int* src_nodes, int* dst_nodes, int* distanc
     int niter = constGraphParams.nnode;
     int nedge = constGraphParams.nedge;
 
-    int u = src_nodes[eid];
-    int v = dst_nodes[eid];
+    int u, v;
+    if (eid < nedge) {
+        u = src_nodes[eid];
+        v = dst_nodes[eid];
+    }
 
     int* weight = constGraphParams.weight;
 
@@ -269,7 +272,7 @@ __global__ void bellman_ford_kernel(int* src_nodes, int* dst_nodes, int* distanc
         int new_distance;
         if (eid < nedge) new_distance = distance[u] + weight[eid];
         __syncthreads();
-        atomicMin(&distance[v], new_distance);
+        if (eid < nedge) atomicMin(&distance[v], new_distance);
         __syncthreads();
     }
 }

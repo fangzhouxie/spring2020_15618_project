@@ -255,25 +255,16 @@ __global__ void reweight_kernel(int* src_nodes, int* dst_nodes, int* distance, i
 
 __global__ void bellman_ford_kernel(int* src_nodes, int* dst_nodes, int* distance) {
     int eid = blockIdx.x * blockDim.x + threadIdx.x;
-    int niter = constGraphParams.nnode;
     int nedge = constGraphParams.nedge;
+    int* weight = constGraphParams.weight;
+    int u, v, new_distance;
 
-    int u, v;
     if (eid < nedge) {
         u = src_nodes[eid];
         v = dst_nodes[eid];
-    }
-
-    int* weight = constGraphParams.weight;
-
-    // TODO: Fix data race
-    // Currently use more iterations to mitigate data race
-    for (int iter = 0; iter < 2 * niter; iter++) {
-        int new_distance;
-        if (eid < nedge) new_distance = distance[u] + weight[eid];
-        __syncthreads();
-        if (eid < nedge) atomicMin(&distance[v], new_distance);
-        __syncthreads();
+        new_distance = distance[u] + weight[eid];
+        // atomicMin(&distance[v], new_distance);
+        if (distance[v] > new_distance) distance[v] = new_distance;
     }
 }
 
@@ -315,8 +306,10 @@ __host__ void bellman_ford_host(Graph *graph) {
     cudaMemcpy(deviceWeight, graph->weight, graph->nedge * sizeof(int), cudaMemcpyHostToDevice);
     // cudaCheckErrors("bellman_ford cudaMemcpyHostToDevice");
 
-    bellman_ford_kernel<<<blocks, threadsPerBlock>>>(deviceSrcNodes, deviceDstNodes, deviceDistance);
-    cudaDeviceSynchronize();
+    for (int i = 0; i < graph->nnode; i++) {
+        bellman_ford_kernel<<<blocks, threadsPerBlock>>>(deviceSrcNodes, deviceDstNodes, deviceDistance);
+        cudaDeviceSynchronize();
+    }
 
     // cudaCheckErrors("bellman_ford_kernel");
 

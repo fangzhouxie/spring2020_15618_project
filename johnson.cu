@@ -161,6 +161,7 @@ __device__ __inline__ void BellmanFord(Graph *graph, int nid) {
 
 // Recursively calculate original weights
 __device__ __inline__ void CalculateOriginalDistance(int src_nid, int nid, int *distance, int *predecessor) {
+    distance[nid] = 0;
     int current_nid = nid;
     int prev_nid = predecessor[current_nid];
 
@@ -168,19 +169,19 @@ __device__ __inline__ void CalculateOriginalDistance(int src_nid, int nid, int *
     int *edge = constGraphParams.edge;
     int *weight = constGraphParams.weight;
 
-    if (distance[nid] != -1)   // Distance is already alculated
-        return;
-    else if (nid == src_nid)    // This is the source node
+    if (nid == src_nid)    // This is the source node
         distance[nid] = 0;
-    else if (predecessor[nid] == -1)    // No valid path to this node exists
+    else if (prev_nid == -1)    // No valid path to this node exists
         distance[nid] = IntMax;
     else {
-        if (distance[prev_nid] == -1)
-            CalculateOriginalDistance(src_nid, prev_nid, distance, predecessor);
-        // Distance increment by original edge weight
-        for (int eid = node[prev_nid]; eid < node[prev_nid+1]; eid++)
-            if (edge[eid] == current_nid)
-                distance[nid] = weight[eid] + distance[prev_nid];
+        while (current_nid != src_nid) {
+            // Distance increment by original edge weight
+            for (int eid = node[prev_nid]; eid < node[prev_nid+1]; eid++)
+                if (edge[eid] == current_nid)
+                    distance[nid] += weight[eid];
+            current_nid = prev_nid;
+            prev_nid = predecessor[current_nid];
+        }
     }
 }
 
@@ -262,13 +263,13 @@ __global__ void bellman_ford_kernel(int* src_nodes, int* dst_nodes, int* distanc
 
     int* weight = constGraphParams.weight;
 
-    for (int iter = 0; iter < niter; iter++) {
-        if (eid < nedge) {
-            int new_distance = distance[u] + weight[eid];
-            // do we need atomicCAS?
-            //if (distance[v] > new_distance) distance[v] = new_distance;
-            atomicMin(&distance[v], new_distance);
-        }
+    // TODO: Fix data race
+    // Currently use more iterations to mitigate data race
+    for (int iter = 0; iter < 2 * niter; iter++) {
+        int new_distance;
+        if (eid < nedge) new_distance = distance[u] + weight[eid];
+        __syncthreads();
+        atomicMin(&distance[v], new_distance);
         __syncthreads();
     }
 }

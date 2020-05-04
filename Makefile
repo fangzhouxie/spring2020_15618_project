@@ -34,3 +34,4 @@ clean:
 	rm -f johnson_omp
 	rm -f johnson_boost
 	rm -f johnson_cuda
+	rm -rf regression-cache

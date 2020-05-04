@@ -22,7 +22,7 @@ def generate_graph(nnode, nedge, seed):
     res = []
     for e in edges:
         weight = random.randint(-10, 10)
-        res.append((e[0], e[1], weight))
+        res.append((e[1], e[0], weight))
 
     gname = graphName(nnode, nedge, seed)
     f = open(gname, "w")

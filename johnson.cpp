@@ -71,6 +71,20 @@ Graph *LoadGraph(FILE *graph_file) {
     return graph;
 }
 
+void freeGraph(Graph* graph) {
+    for (int nid = 0; nid < graph->nnode; nid++) {
+        free(graph->distance[nid]);
+        free(graph->predecessor[nid]);
+    }
+    free(graph->node);
+    free(graph->edge);
+    free(graph->weight);
+    free(graph->new_weight);
+    free(graph->distance);
+    free(graph->predecessor);
+    free(graph);
+}
+
 void Johnson(Graph *graph) {
     START_ACTIVITY(BELLMAN_FORD);
     BellmanFord(graph);
@@ -90,9 +104,10 @@ int main(int argc, char *argv[]) {
     int thread_count = omp_get_num_procs();
     #endif
     bool instrument = false;
+    bool doPrint = false;
 
     // parse command line arguments
-    while ((c = getopt(argc, argv, "hg:t:vI")) != -1) {
+    while ((c = getopt(argc, argv, "hg:t:vIP")) != -1) {
         switch(c) {
             case 'g':
                 graph_file = fopen(optarg, "r");
@@ -115,6 +130,9 @@ int main(int argc, char *argv[]) {
             case 'I':
                 instrument = true;
                 break;
+            case 'P':
+                doPrint = true;
+                break;
             default:
                 printf("Unknown option '%c'\n", c);
                 Usage(argv[0]);
@@ -124,7 +142,7 @@ int main(int argc, char *argv[]) {
     track_activity(instrument);
 
     if (graph_file == NULL) {
-	    printf("Need graph file\n");
+      printf("Need graph file\n");
         Usage(argv[0]);
         return 0;
     }
@@ -139,17 +157,21 @@ int main(int argc, char *argv[]) {
 
     Johnson(graph);
 
-    START_ACTIVITY(PRINT_GRAPH);
-    for (int i = 0; i < graph->nnode; ++i) {
-      for (int j = 0; j < graph->nnode; ++j) {
-        if (graph->distance[i][j] == IntMax)
-        std::cout << std::setw(5) << "inf";
-        else
-        std::cout << std::setw(5) << graph->distance[i][j];
-      }
-      std::cout << std::endl;
+    if (doPrint) {
+        START_ACTIVITY(PRINT_GRAPH);
+        for (int i = 0; i < graph->nnode; ++i) {
+            for (int j = 0; j < graph->nnode; ++j) {
+                if (graph->distance[i][j] == IntMax)
+                    std::cout << std::setw(5) << "inf";
+                else
+                    std::cout << std::setw(5) << graph->distance[i][j];
+            }
+            std::cout << std::endl;
+        }
+        FINISH_ACTIVITY(PRINT_GRAPH);
     }
-    FINISH_ACTIVITY(PRINT_GRAPH);
 
     SHOW_ACTIVITY(stderr, instrument);
+
+    freeGraph(graph);
 }

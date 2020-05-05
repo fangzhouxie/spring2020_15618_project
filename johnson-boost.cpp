@@ -9,8 +9,9 @@ int main(int argc, char *argv[]){
   int c;
   FILE *gfile = NULL;
   bool instrument = false;
+  bool doPrint = false;
   // parse command line arguments
-  while ((c = getopt(argc, argv, "g:I")) != -1) {
+  while ((c = getopt(argc, argv, "g:IP")) != -1) {
     switch(c) {
       case 'g':
         gfile = fopen(optarg, "r");
@@ -19,6 +20,9 @@ int main(int argc, char *argv[]){
         break;
       case 'I':
         instrument = true;
+        break;
+      case 'P':
+        doPrint = true;
         break;
       default:
       printf("Unknown option '%c'\n", c);
@@ -104,17 +108,19 @@ int main(int argc, char *argv[]){
   johnson_all_pairs_shortest_paths(g, D, distance_map(&d[0]));
   // FINISH_ACTIVITY(JOHNSON_BOOST);
 
-  // START_ACTIVITY(PRINT_GRAPH);
-  for (int i = 0; i < V; ++i) {
-    for (int j = 0; j < V; ++j) {
-      if (D[i][j] == (std::numeric_limits<int>::max)())
-      std::cout << std::setw(5) << "inf";
-      else
-      std::cout << std::setw(5) << D[i][j];
+  if (doPrint) {
+    // START_ACTIVITY(PRINT_GRAPH);
+    for (int i = 0; i < V; ++i) {
+      for (int j = 0; j < V; ++j) {
+        if (D[i][j] == (std::numeric_limits<int>::max)())
+        std::cout << std::setw(5) << "inf";
+        else
+        std::cout << std::setw(5) << D[i][j];
+      }
+      std::cout << std::endl;
     }
-    std::cout << std::endl;
+    // FINISH_ACTIVITY(PRINT_GRAPH);
   }
-  // FINISH_ACTIVITY(PRINT_GRAPH);
 
   // SHOW_ACTIVITY(stderr, instrument);
 

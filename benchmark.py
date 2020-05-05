@@ -153,7 +153,6 @@ def bestRun(cmdList, progFileName):
         if secs < sofar:
             sofar = secs
             d = instDict
-        #sofar = min(sofar, secs)
     return sofar, d
 
 def getGraph(nnode, nedge, seed):
@@ -196,7 +195,7 @@ def runBenchmark(useRef, testId, threadCount, gpu=False):
             referenceFileName = fileName
         else:
             testFileName = fileName
-        clist += ["P"] # print output graph
+        clist += ["-P"] # print output graph
 
     cmd = [prog] + clist
     cmdLine = " ".join(cmd)
@@ -230,14 +229,16 @@ def sweep(testList, threadCounts, gpu=False):
     instResult = None
     cinstResult = None
     for t in testList:
+        # run benchmark baseline once at the beginning
         if (len(threadCounts) > 1 or gpu) and doCheck:
+            outmsg("+++++++++++++++++ Benchmark Baseline +++++++++++++++++")
             cresults, cinstResult = runBenchmark(True, t, 1)
 
         for tc in threadCounts:
             tstart = time.perf_counter()
             ok = True
             results, instResult = runBenchmark(False, t, tc, gpu)
-            if results is not None and doCheck and len(threadCounts) <= 1:
+            if results is not None and doCheck and (len(threadCounts) <= 1 and not gpu):
                 cresults, _ = runBenchmark(True, t, tc, gpu)
                 if doRegress and referenceFileName != "" and testFileName != "":
                     ok = checkFiles(referenceFileName, testFileName)
@@ -293,10 +294,10 @@ def generateInstResultTable(resultList, instResultList, cinstResult):
         l, p, bf, d, o, u, e = [cinstResult.get(c, 0.0) for c in instColumns]
         msg = "{0:<8} {1:<14} {2:<10} {3:<10} {4:<8} {5:<8}".format("Ref", bf, d, o, u, e)
         outmsg(msg)
-        bf_ref, d_ref, elapsed_ref = float(bf), float(d), (float(e) - float(l))
+        bf_ref, d_ref, elapsed_ref = float(bf), float(d), (float(e) - float(l) - float(p)) # remove load_graph and print_graph
     for result, instResult in zip(resultList, instResultList):
         l, p, bf, d, o, u, e = [instResult.get(c, 0.0) for c in instColumns]
-        elapsed = float(e)-float(l) # remove load_graph
+        elapsed = float(e) - float(l) - float(p) # remove load_graph and print_graph
         e = "%.2f" % elapsed
         bf_speedup, dijkstra_speedup, elapsed_speedup = "-", "-", "-"
         if bf and bf_ref:

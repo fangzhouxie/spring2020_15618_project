@@ -129,63 +129,7 @@ void freeGraph(Graph* graph) {
 // Start of kernels
 ///////////////////////////////////////////////////////////////////////////////
 
-__device__ __inline__ void BellmanFord(Graph *graph, int nid) {
-    extern __shared__ int distance[];
-    if (nid < graph->nnode)
-        distance[nid] = 0;
-
-    __syncthreads();
-
-    for (int u = 0; u < graph->nnode; u++)
-        for (int eid = graph->node[u]; eid < graph->node[u+1]; eid++) {
-            int v = graph->edge[eid];
-            int weight = graph->weight[eid];
-            if (distance[v] > distance[u] + weight)
-                distance[v] = distance[u] + weight;
-        }
-
-    __syncthreads();
-
-    if (nid < graph->nnode) {
-        int u = nid;
-        for (int eid = graph->node[u]; eid < graph->node[u+1]; eid++) {
-            int v = graph->edge[eid];
-            graph->new_weight[eid] = graph->weight[eid] + distance[u] - distance[v];
-            if (graph->new_weight[eid] < 0) {
-                printf("Graph contains negative weight cycle\n");
-                return;
-            }
-        }
-    }
-}
-
-// Recursively calculate original weights
-__device__ __inline__ void CalculateOriginalDistance(int src_nid, int nid, int *distance, int *predecessor) {
-    distance[nid] = 0;
-    int current_nid = nid;
-    int prev_nid = predecessor[current_nid];
-
-    int *node = constGraphParams.node;
-    int *edge = constGraphParams.edge;
-    int *weight = constGraphParams.weight;
-
-    if (nid == src_nid)    // This is the source node
-        distance[nid] = 0;
-    else if (prev_nid == -1)    // No valid path to this node exists
-        distance[nid] = IntMax;
-    else {
-        while (current_nid != src_nid) {
-            // Distance increment by original edge weight
-            for (int eid = node[prev_nid]; eid < node[prev_nid+1]; eid++)
-                if (edge[eid] == current_nid)
-                    distance[nid] += weight[eid];
-            current_nid = prev_nid;
-            prev_nid = predecessor[current_nid];
-        }
-    }
-}
-
-// Functionality is explaned by function name
+// Functionality is explained by function name
 __device__ __inline__ int FindIndexOfUnvisitedNodeWithMinDistance(int nnode, int *distance, char *visited) {
     int min_nid = -1;
     int min_distance = IntMax;
@@ -206,6 +150,7 @@ __global__ void dijkstra_kernel(int* new_weight, int* distance, int* tmp_distanc
 
     int *node = constGraphParams.node;
     int *edge = constGraphParams.edge;
+    int *weight = constGraphParams.weight;
 
     int *distance_local = &distance[src_nid * nnode];
     // malloc would fail for large graphs
@@ -214,13 +159,14 @@ __global__ void dijkstra_kernel(int* new_weight, int* distance, int* tmp_distanc
     char *visited_local = &visited[src_nid * nnode];
 
     for (int nid = 0; nid < nnode; nid++) {
-        distance_local[nid] = -1;
         predecessor_local[nid] = -1;
         tmp_distance_local[nid] = IntMax;
+        distance_local[nid] = IntMax;
         visited_local[nid] = 0;
     }
-    tmp_distance_local[src_nid] = 0;
     predecessor_local[src_nid] = src_nid;
+    tmp_distance_local[src_nid] = 0;
+    distance_local[src_nid] = 0;
 
     for (int iter = 0; iter < nnode; iter++) {
         int min_nid = FindIndexOfUnvisitedNodeWithMinDistance(nnode, tmp_distance_local, visited_local);
@@ -232,14 +178,11 @@ __global__ void dijkstra_kernel(int* new_weight, int* distance, int* tmp_distanc
             int neighbor_nid = edge[eid];
             if (tmp_distance_local[neighbor_nid] > new_weight[eid] + tmp_distance_local[min_nid]) {
                 tmp_distance_local[neighbor_nid] = new_weight[eid] + tmp_distance_local[min_nid];
+                distance_local[neighbor_nid] = weight[eid] + distance_local[min_nid];
                 predecessor_local[neighbor_nid] = min_nid;
             }
         }
     }
-
-    for (int nid = 0; nid < nnode; nid++)
-        CalculateOriginalDistance(src_nid, nid, distance_local, predecessor_local);
-
 }
 
 __global__ void reweight_kernel(int* src_nodes, int* dst_nodes, int* distance, int* weight, int* new_weight) {

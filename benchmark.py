@@ -214,9 +214,9 @@ def formatTitle():
     return " ".join("{0:<10}".format(t) for t in ls)
 
 def printTitle():
-    outmsg("+" * 80)
+    outmsg("+" * 75)
     outmsg(formatTitle())
-    outmsg("+" * 80)
+    outmsg("+" * 75)
 
 def sweep(testList, threadCounts, gpu=False):
     tcount = 0
@@ -255,54 +255,57 @@ def sweep(testList, threadCounts, gpu=False):
             secs = time.perf_counter() - tstart
             print("Test time for %d threads = %.2f secs." % (tc, secs))
 
-        if len(threadCounts) > 1 or gpu:
-            printTitle() # one table per test
-            for result in resultList:
-                outmsg(" ".join("{0:<10}".format(r) for r in result))
-
-            if len(instResultList) > 0:
+        if len(threadCounts) > 1 or gpu: #one table per test
+            if doInstrument:
                 generateInstResultTable(resultList, instResultList, cinstResult)
+            else:
+                printTable(resultList)
 
             resultList = []
             instResultList = []
 
+    # print one table at the end
     if len(threadCounts) == 1 and not gpu:
-        printTitle() # one table in total
-        for result in resultList:
-            outmsg(" ".join("{0:<10}".format(r) for r in result))
-
-        if len(instResultList) > 0:
+        if doInstrument:
             generateInstResultTable(resultList, instResultList, cinstResult)
+        else:
+            printTable(resultList)
 
+def printTable(resultList):
+    printTitle() # one table in total
+    for result in resultList:
+        outmsg(" ".join("{0:<10}".format(r) for r in result))
 
 def generateInstResultTable(resultList, instResultList, cinstResult):
     bf, dijkstra = None, None
-    # cols = ["Thread", "load_graph", "bellman_ford", "dijkstra", "overhead", "unknown", "elapsed", "BF Speedup", "D Speedup"]
-    # widths = {"Thread": 8, "load_graph": 12, "bellman_ford": 14, "dijkstra": 10, "overhead": 10, "unknown": 8, "elapsed": 8, "BF Speedup": 12, "D Speedup": 12}
 
-    outmsg("+" * 115)
+    outmsg("+" * 105)
     if len(resultList) > 0:
         nnode, nedge, seed = resultList[0][:3]
         outmsg(" " * 35 + "{} Nodes, {} Edges, Seed {}".format(nnode, nedge, seed))
-    msg = "{0:<8} {1:<12} {2:<14} {3:<10} {4:<10} {5:<8} {6:<8} {7:<12} {8:<12}".format("GPU" if gpu else "Thread", "load_graph", "bellman_ford", "dijkstra", "overhead", "unknown", "elapsed", "BF Speedup", "D Speedup")
+    msg = "{0:<8} {1:<14} {2:<10} {3:<10} {4:<8} {5:<8} {6:<12} {7:<12} {8:<15}".format("GPU" if gpu else "Thread", "bellman_ford", "dijkstra", "overhead", "unknown", "elapsed", "BF Speedup", "D Speedup", "Overall Speedup")
     outmsg(msg)
-    outmsg("+" * 115)
+    outmsg("+" * 105)
 
-    bf_ref, d_ref = 0., 0.
+    bf_ref, d_ref, elapsed_ref = 0., 0., 0.
 
     if cinstResult is not None:
         l, p, bf, d, o, u, e = [cinstResult.get(c, 0.0) for c in instColumns]
-        msg = "{0:<8} {1:<12} {2:<14} {3:<10} {4:<10} {5:<8} {6:<8}".format("Ref", l, bf, d, o, u, e)
+        msg = "{0:<8} {1:<14} {2:<10} {3:<10} {4:<8} {5:<8}".format("Ref", bf, d, o, u, e)
         outmsg(msg)
-        bf_ref, d_ref = float(bf), float(d)
+        bf_ref, d_ref, elapsed_ref = float(bf), float(d), (float(e) - float(l))
     for result, instResult in zip(resultList, instResultList):
         l, p, bf, d, o, u, e = [instResult.get(c, 0.0) for c in instColumns]
-        bf_speedup, dijkstra_speedup = "-", "-"
+        elapsed = float(e)-float(l) # remove load_graph
+        e = "%.2f" % elapsed
+        bf_speedup, dijkstra_speedup, elapsed_speedup = "-", "-", "-"
         if bf and bf_ref:
             bf_speedup = "%.2fx" % (bf_ref/float(bf))
         if d and d_ref:
             dijkstra_speedup = "%.2fx" % (d_ref/float(d))
-        msg = "{0:<8} {1:<12} {2:<14} {3:<10} {4:<10} {5:<8} {6:<8} {7:<12} {8:<12}".format("x" if gpu else result[3], l, bf, d, o, u, e, bf_speedup, dijkstra_speedup)
+        if e and elapsed_ref:
+            speedup = "%.2fx" % (elapsed_ref/elapsed)
+        msg = "{0:<8} {1:<14} {2:<10} {3:<10} {4:<8} {5:<8} {6:<12} {7:<12} {8:<15}".format("x" if gpu else result[3], bf, d, o, u, e, bf_speedup, dijkstra_speedup, speedup)
         outmsg(msg)
 
 def generateFileName(template):

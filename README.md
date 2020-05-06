@@ -1,1 +1,2 @@
-# spring2020_15618_project :D
+# Parallel Johnson’s Algorithm
+## 15618 Project Spring 2020  :D

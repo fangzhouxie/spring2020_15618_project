@@ -289,7 +289,7 @@ __host__ void dijkstra_host(Graph *graph) {
     cudaMemcpy(deviceNewWeights, graph->new_weight, sizeof(int) * nedge, cudaMemcpyHostToDevice);
     // cudaCheckErrors("dijkstra cudaMemcpyHostToDevice");
 
-    int threadsPerBlock = 512;
+    int threadsPerBlock = 2;
     int blocks = (nnode + threadsPerBlock - 1) / threadsPerBlock;
     dijkstra_kernel<<<blocks, threadsPerBlock>>>(deviceNewWeights, deviceDistance, deviceTmpDistance, devicePredecessor, deviceVisited);
     cudaDeviceSynchronize();

@@ -16,17 +16,14 @@ int FindIndexOfUnvisitedNodeWithMinDistance(int nnode, int *distance, char *visi
 
 void Dijkstra(Graph *graph, int src_nid) {
     int *distance = graph->distance[src_nid];
-    int *predecessor = graph->predecessor[src_nid];
     int tmp_distance[graph->nnode];
     char visited[graph->nnode];
 
     for (int nid = 0; nid < graph->nnode; nid++) {
-        predecessor[nid] = -1;
         tmp_distance[nid] = IntMax;
         distance[nid] = IntMax;
         visited[nid] = 0;
     }
-    predecessor[src_nid] = src_nid;
     tmp_distance[src_nid] = 0;
     distance[src_nid] = 0;
 
@@ -41,7 +38,6 @@ void Dijkstra(Graph *graph, int src_nid) {
             if (tmp_distance[neighbor_nid] > graph->new_weight[eid] + tmp_distance[min_nid]) {
                 tmp_distance[neighbor_nid] = graph->new_weight[eid] + tmp_distance[min_nid];
                 distance[neighbor_nid] = graph->weight[eid] + distance[min_nid];
-                predecessor[neighbor_nid] = min_nid;
             }
         }
     }

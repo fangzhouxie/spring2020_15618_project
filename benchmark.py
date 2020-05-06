@@ -48,12 +48,12 @@ benchmarkDict = {
     # density = 0.5
     "small":  (256,   16320,   1),
     "medium": (1024,  517888,  2),
-    # "large":  (4096,  4194304, 3),
+    "large":  (4096,  4194304, 3),
     # density = 0.125
     "medium-sparse": (1024, 129472, 2)
 }
 
-scalingList = ['small', 'medium', 'medium-sparse']
+scalingList = ['small', 'medium', 'medium-sparse', 'large']
 
 defaultTests = benchmarkDict.keys()
 

@@ -139,17 +139,19 @@ int main(int argc, char *argv[]) {
         }
     }
 
-    track_activity(instrument);
-
     if (graph_file == NULL) {
-      printf("Need graph file\n");
+        printf("Need graph file\n");
         Usage(argv[0]);
         return 0;
     }
 
+    track_activity(instrument);
+
+    START_ACTIVITY(ACTIVITY_OVERHEAD);
     #if OMP
     omp_set_num_threads(thread_count);
     #endif
+    FINISH_ACTIVITY(ACTIVITY_OVERHEAD);
 
     START_ACTIVITY(LOAD_GRAPH);
     graph = LoadGraph(graph_file);

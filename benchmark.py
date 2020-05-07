@@ -46,14 +46,14 @@ mismatchLimit = 5
 # Graph: (#node, #edge, #seed)
 benchmarkDict = {
     # density = 0.5
-    "small":  (256,   16320,   1),
-    "medium": (1024,  517888,  2),
-    # "large":  (4096,  4194304, 3),
+    "small":  (256,   16384,   1),
+    "medium": (1024,  262144,  2),
+    "large":  (4096,  4194304, 3),
     # density = 0.125
-    "medium-sparse": (1024, 129472, 2)
+    "medium-sparse": (1024, 65536, 2)
 }
 
-scalingList = ['small', 'medium', 'medium-sparse']
+scalingList = ['small', 'medium', 'medium-sparse', 'large']
 
 defaultTests = benchmarkDict.keys()
 
@@ -299,7 +299,7 @@ def generateInstResultTable(resultList, instResultList, cinstResult):
         l, p, bf, d, o, u, e = [instResult.get(c, 0.0) for c in instColumns]
         elapsed = float(e) - float(l) - float(p) # remove load_graph and print_graph
         e = "%.2f" % elapsed
-        bf_speedup, dijkstra_speedup, elapsed_speedup = "-", "-", "-"
+        bf_speedup, dijkstra_speedup, speedup = "-", "-", "-"
         if bf and bf_ref:
             bf_speedup = "%.2fx" % (bf_ref/float(bf))
         if d and d_ref:
@@ -361,6 +361,8 @@ if __name__ == "__main__":
     doRegress = args.verify if doCheck else False
     doInstrument = args.instrument if args.instrument is not None else doInstrument
     runCount = args.runs if args.runs is not None else runCount
+    if doInstrument:
+        stdProgram = seqProgram # instrumentation not available for johnson_boost
     # Scaling mode: vary the number of threads
     if args.scale:
         threadCounts = list(range(2, defaultThreadCount+1))

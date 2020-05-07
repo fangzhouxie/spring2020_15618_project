@@ -346,9 +346,11 @@ __host__ void johnson_host(Graph *graph) {
     dijkstra_host(graph);
     FINISH_ACTIVITY(DIJKSTRA);
 
+    START_ACTIVITY(ACTIVITY_OVERHEAD);
     cudaFree(deviceNodes);
     cudaFree(deviceEdges);
     cudaFree(deviceWeights);
+    FINISH_ACTIVITY(ACTIVITY_OVERHEAD);
 }
 
 static void Usage(char *name) {
@@ -418,13 +420,13 @@ int main(int argc, char *argv[]) {
         return 0;
     }
 
-    track_activity(instrument);
-
     if (graph_file == NULL) {
 	      printf("Need graph file\n");
         Usage(argv[0]);
         return 0;
     }
+
+    track_activity(instrument);
 
     START_ACTIVITY(LOAD_GRAPH);
     graph = LoadGraph(graph_file);
